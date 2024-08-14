@@ -2,7 +2,8 @@ import unittest
 from sound_api import (
         request_sound_from_api,
         retrieve_sound_from_api,
-        saves_audio_file
+        saves_audio_file,
+        download_foreign_audio
         )
 from os.path import (
         exists
@@ -10,6 +11,10 @@ from os.path import (
 from os import (
         remove
         )
+
+# SOUND OF TEXT API
+
+## PHASE 1 - interact with SoundOfText API
 
 class TestSendPOSTRequestToCreateSound(unittest.TestCase):
 
@@ -61,6 +66,22 @@ class TestSaveAudioFileFromRequest(unittest.TestCase):
         # Verify the file no longer exists
         self.assertFalse(exists(FILE_SAVE_PATH))
 
+
+## PHASE 2 - routine
+
+class TestRoutineDownloadSoT(unittest.TestCase):
+
+    def test_can_download_audio_file(self):
+        language = "da-DK"
+        query = "Jeg siger interessante ting"
+        FILE_SAVE_PATH = "./test_file.mp3"
+        
+        self.assertTrue(download_foreign_audio(language, query, FILE_SAVE_PATH))
+        # Delete the file
+        remove(FILE_SAVE_PATH)
+
+        # Verify the file no longer exists
+        self.assertFalse(exists(FILE_SAVE_PATH))
 
 
 if __name__ == "__main__":

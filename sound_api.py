@@ -19,7 +19,7 @@ def request_sound_from_api(language: str, query: str) -> Tuple[bool, str]:
 
     returns a bool indicating success of query
     and a str with the resulting audio_id"""
-    payload = {"data": {"text": query, "voice": language}}
+    payload = {"data": {"text": query + "   ", "voice": language}}
     res = requests.post(SOUNDS_ENDPOINT,
                        json=payload,
                        )
@@ -80,3 +80,20 @@ def saves_audio_file(web_audio_path: str, file_path: str) -> bool:
     else:
         logger.error(f'Failed to download the file.\nStatus code: {response.status_code}')
         return False
+
+
+def download_foreign_audio(language: str, query: str, file_path: str = None) -> bool:
+    sound_request_successful, audio_id = request_sound_from_api(language, query)
+    if not sound_request_successful:
+        logger.error(f"Request for {query} was not successful!")
+        return False
+    retrieve_request_successful, audio_url = retrieve_sound_from_api(audio_id, 0)
+    if not retrieve_request_successful:
+        logger.error(f"URL retrieval for {query} | audio_id: {audio_id} was not successful!")
+        return False
+    if not file_path:
+        file_path = query.replace(" ", "_").lower() + '.mp3'
+    if not saves_audio_file(audio_url, file_path):
+        logger.error(f"Saving of {query} | audio_id: {audio_id} | audio_url: {audio_url} was not successful!")
+        return False
+    return True
