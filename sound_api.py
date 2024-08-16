@@ -14,6 +14,10 @@ from time import (
 import os
 
 
+def normalise_file_path(query: str) -> str:
+    return query.replace(" ", "_").lower().strip('.') + '.mp3'
+
+
 def request_sound_from_api(language: str, query: str) -> Tuple[bool, str]:
     """produces a request to the API to generate a sound
 
@@ -82,18 +86,17 @@ def saves_audio_file(web_audio_path: str, file_path: str) -> bool:
         return False
 
 
-def download_foreign_audio(language: str, query: str, file_path: str = None) -> bool:
+def download_foreign_audio(language: str, query: str, audio_path: str) -> Tuple[bool, str]:
     sound_request_successful, audio_id = request_sound_from_api(language, query)
     if not sound_request_successful:
         logger.error(f"Request for {query} was not successful!")
-        return False
+        return False, None
     retrieve_request_successful, audio_url = retrieve_sound_from_api(audio_id, 0)
     if not retrieve_request_successful:
         logger.error(f"URL retrieval for {query} | audio_id: {audio_id} was not successful!")
-        return False
-    if not file_path:
-        file_path = query.replace(" ", "_").lower() + '.mp3'
-    if not saves_audio_file(audio_url, file_path):
+        return False, None
+    file_path = normalise_file_path(query)
+    if not saves_audio_file(audio_url, audio_path + file_path):
         logger.error(f"Saving of {query} | audio_id: {audio_id} | audio_url: {audio_url} was not successful!")
-        return False
-    return True
+        return False, None
+    return True, file_path

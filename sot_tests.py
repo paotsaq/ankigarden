@@ -54,10 +54,11 @@ class TestSaveAudioFileFromRequest(unittest.TestCase):
 
     def test_save_file_from_request(self):
         """follows a link to save a file in a directory"""
-        FILE_SAVE_PATH = "./test_audio.mp3"
+        AUDIO_FOLDER = "./audios/"
         VALID_AUDIO_PATH = "https://files.soundoftext.com/a6a76b50-596a-11ef-bbfe-19a6f1097474.mp3"
-        res = saves_audio_file(VALID_AUDIO_PATH, FILE_SAVE_PATH)
+        success, audio_path = saves_audio_file(VALID_AUDIO_PATH, AUDIO_FOLDER)
         self.assertTrue(res)
+        FILE_SAVE_PATH = AUDIO_FOLDER + audio_path
         self.assertTrue(exists(FILE_SAVE_PATH))
 
         # Delete the file
