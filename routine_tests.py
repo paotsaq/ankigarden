@@ -1,7 +1,7 @@
 import unittest
 from routine import (
     get_audio_from_source_query,
-    get_bulk_audio_from_textfile
+    get_bulk_translation_and_audio_from_textfile
         )
 from sound_api import (
         normalise_file_path
@@ -47,7 +47,7 @@ class TestBulkAudioGeneration(unittest.TestCase):
         PROMPT_FILE = "./test_prompts.txt"
         TARGET = "DA"
         DEST_FILE_PATH = "./audios/"
-        get_bulk_audio_from_textfile(TARGET, PROMPT_FILE, DEST_FILE_PATH)
+        get_bulk_translation_and_audio_from_textfile(TARGET, PROMPT_FILE, DEST_FILE_PATH)
         self.assertTrue(exists(DEST_FILE_PATH + "det_burde_fungere_rigtig_godt.mp3"))
         self.assertTrue(exists(DEST_FILE_PATH + "det_er_en_simpel_ting.mp3"))
         self.assertTrue(exists(DEST_FILE_PATH + "her_er_en_anden_simpel_ting.mp3"))

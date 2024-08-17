@@ -27,7 +27,7 @@ def request_sound_from_api(language: str, query: str) -> Tuple[bool, str]:
     res = requests.post(SOUNDS_ENDPOINT,
                        json=payload,
                        )
-    logger.info(f"Made request: {res}")
+    logger.debug(f"Made request: {res}")
     if res.status_code != 200:
         logger.error(f"Response code was {res.status_code}!")
         logger.error(f"{res.reason}")
@@ -53,7 +53,7 @@ def retrieve_sound_from_api(audio_id: str, retries: int) -> Tuple[bool, str]:
         logger.error(f"Request failed! Maximum retries of {MAX_TRIES} achieved.")
         return False, None
     res = requests.get(SOUNDS_ENDPOINT + audio_id)
-    logger.info(f"Made request: {res}")
+    logger.debug(f"Made request: {res}")
     if res.status_code == 200:
         loaded_content =  loads(res.content)
         if loaded_content["status"] == "Pending":
@@ -95,8 +95,24 @@ def download_foreign_audio(language: str, query: str, audio_path: str) -> Tuple[
     if not retrieve_request_successful:
         logger.error(f"URL retrieval for {query} | audio_id: {audio_id} was not successful!")
         return False, None
-    file_path = normalise_file_path(query)
-    if not saves_audio_file(audio_url, audio_path + file_path):
+    file_name = normalise_file_path(query)
+    file_path = (audio_path +
+                 ('/' if audio_path[0] != '/' else
+                  '') +
+                 file_name)
+    if not saves_audio_file(audio_url, file_path):
         logger.error(f"Saving of {query} | audio_id: {audio_id} | audio_url: {audio_url} was not successful!")
         return False, None
     return True, file_path
+
+
+# NOTE untested!
+def get_bulk_audio_from_textfile(target: str, source_file_path: str, dest_file_path: str):
+    with open(source_file_path, "r") as bulk_content:
+        lines = map(lambda line: line.strip(),
+                    bulk_content.readlines())
+        for query in lines:
+            logger.info(f"Handling query for {query}...")
+            download_foreign_audio(target, query, dest_file_path)
+    logger.info("All done!")
+

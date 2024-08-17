@@ -19,7 +19,7 @@ def get_audio_from_source_query(target: str, query: str, dest_file_path: str):
     return True, translation, "oops"
 
 
-def get_bulk_audio_from_textfile(target: str, source_file_path: str, dest_file_path: str):
+def get_bulk_translation_and_audio_from_textfile(target: str, source_file_path: str, dest_file_path: str):
     with open(source_file_path, "r") as bulk_content:
         lines = map(lambda line: line.strip(),
                     bulk_content.readlines())
