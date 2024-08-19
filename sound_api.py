@@ -13,7 +13,6 @@ from time import (
         )
 import os
 
-
 def normalise_file_path(query: str) -> str:
     return query.replace(" ", "_").lower().strip('.') + '.mp3'
 
@@ -103,7 +102,7 @@ def download_foreign_audio(language: str, query: str, audio_path: str) -> Tuple[
     if not saves_audio_file(audio_url, file_path):
         logger.error(f"Saving of {query} | audio_id: {audio_id} | audio_url: {audio_url} was not successful!")
         return False, None
-    return True, file_path
+    return True, file_name
 
 
 # NOTE untested!

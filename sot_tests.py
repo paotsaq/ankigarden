@@ -75,14 +75,15 @@ class TestRoutineDownloadSoT(unittest.TestCase):
     def test_can_download_audio_file(self):
         language = "da-DK"
         query = "Jeg siger interessante ting"
-        FILE_SAVE_PATH = "./test_file.mp3"
+        FILE_SAVE_PATH = "./audios/"
         
-        self.assertTrue(download_foreign_audio(language, query, FILE_SAVE_PATH))
+        success, audio_filename = download_foreign_audio(language, query, FILE_SAVE_PATH)
+        self.assertTrue(success)
         # Delete the file
-        remove(FILE_SAVE_PATH)
+        remove(audio_filename)
 
         # Verify the file no longer exists
-        self.assertFalse(exists(FILE_SAVE_PATH))
+        self.assertFalse(exists(audio_filename))
 
 
 if __name__ == "__main__":
