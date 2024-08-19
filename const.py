@@ -4,6 +4,9 @@ TRANSLATE_ENDPOINT = DEEPL_API_BASE_URL + "translate/"
 SOUND_API_BASE_URL = "https://api.soundoftext.com/"
 SOUNDS_ENDPOINT = SOUND_API_BASE_URL + "sounds/"
 
+DATABASE_FILE_PATH = "/ankigarden.db"
+
+
 LANG_MAP = {
         "Danish": {
             "deepl_code": "DA",
