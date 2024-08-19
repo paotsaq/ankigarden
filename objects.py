@@ -48,7 +48,7 @@ class Flashcard(Base):
                                                                context=self.context) 
         if not success:
             logger.error("Did not update flashcard with new source!")
-        self.source = translation
+        self.source = translation.lower()
 
     def get_audio_for_target(self):
         """wraps around the sound_api functionality"""
