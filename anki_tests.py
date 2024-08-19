@@ -56,6 +56,7 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         # Setup test database
         cls.engine = create_engine('sqlite:///test-ankigarden.db')
         Base.metadata.create_all(cls.engine)
+        # NOTE what?
         cls.Session = sessionmaker(bind=cls.engine)
         cls.session = cls.Session()
 
@@ -95,16 +96,6 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         COLUMNS = ["source", "target", "pronunciation"]
         NOTETYPE = "Basic (and reversed) with pronunciation"
         fcs = self.session.query(Flashcard).all()
-        with open("test-anki-import.txt", "w") as f:
-            f.write(create_anki_import_string(fcs,
-                                                   SEP,
-                                                   TAGS_COLUMN,
-                                                   NOTETYPE_COLUMN,
-                                                   DECK,
-                                                   TAGS,
-                                                   COLUMNS,
-                                                   NOTETYPE)
-)
 
 if __name__ == "__main__":
     unittest.main(failfast=True)
