@@ -40,6 +40,7 @@ class TestFirstStepInRoutine(unittest.TestCase):
         self.assertFalse(exists(DEST_FILE_PATH + NORMALISED_FILENAME))
 
 ## PHASE 2 - get bulk content from .txt file
+# NOTE this is still not very well integrated with deepL
 
 class TestBulkAudioGeneration(unittest.TestCase):
 
