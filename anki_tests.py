@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from objects import Base, Flashcard
 from anki_database import (
+        retrieve_all_flashcards_from_database,
         create_anki_import_string
         )
 
@@ -66,16 +67,20 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         cls.session.close()
         cls.engine.dispose()
 
+    def test_can_load_all_flashcards(self):
+        fcs = retrieve_all_flashcards_from_database(self.session)
+        self.assertEqual(len(fcs), 5)
+
     def test_can_parse_and_process_prompts(self):
         # NOTE this is at `create_test_db.py` file;
         # I'm still not sure whether to include this in
-        # the test routine.
-        self.assertTrue(False)
+        # the test routine, because it will eat at my deepL API queries
+        # TODO unless I override the requests?
+        # self.assertTrue(False)
+        pass
 
     def test_can_produce_anki_import_string(self):
-        fcs = self.session.query(Flashcard).all()
-        #NOTE must assert there are flashcards in database
-        self.assertEqual(len(fcs), 5)
+        fcs = retrieve_all_flashcards_from_database(self.session)
         self.maxDiff = None
         SEP = "|"
         TAGS_COLUMN = 4
@@ -104,4 +109,4 @@ class TestAnkiImportFileCreation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(failfast=False)
+    unittest.main(failfast=True)

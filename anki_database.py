@@ -7,16 +7,19 @@ from const import (
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from objects import Base, Flashcard
+from sqlalchemy.engine.base import Engine
 
 
-# NOTE I think this is still untested?
-def retrieve_flashcards_from_database(database_path: str) -> list[Flashcard]:
+def create_connection_to_database(database_path: str) -> list[Engine, Session]:
     engine = create_engine('sqlite://' + database_path)
     intermediate_session = sessionmaker(bind=engine)
     session = intermediate_session()
+    return engine, session
+
+
+# NOTE I think this is still untested?
+def retrieve_all_flashcards_from_database(session: Session) -> list[Flashcard]:
     fcs = session.query(Flashcard).all()
-    session.close()
-    engine.dispose()
     return fcs
 
 
