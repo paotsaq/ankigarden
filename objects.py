@@ -1,8 +1,12 @@
+from os.path import (
+        exists
+        )
 from deepl_api import (
     request_translation_from_api
         )
 from sound_api import (
-    download_foreign_audio
+    download_foreign_audio,
+    get_normalised_file_path
         )
 from logger import logger
 from const import (
@@ -11,8 +15,10 @@ from const import (
 from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class Flashcard(Base):
     __tablename__ = 'flashcards'
@@ -22,6 +28,11 @@ class Flashcard(Base):
     source_lang = Column(String)
     target = Column(String)
     target_lang = Column(String)
+    # NOTE not always do we want the audio to match the target
+    # for example, with Danish nouns,
+    # `friend` is `ven`, but `the friend` is `vennen`,
+    # target will be `ven(nen)` but I want audio for `ven, vennen`
+    # target_audio_query = Column(String)
     context = Column(Text)
     deck = Column(String)
     audio_filename = Column(String)
@@ -51,17 +62,23 @@ class Flashcard(Base):
         if not success:
             logger.error("Did not update flashcard with new source!")
         self.source = translation.lower()
+        logger.info(f"Updated {self.__repr__()} with source!")
 
-    def get_audio_for_target(self):
+    def get_audio_file_path(self):
+        self.audio_filename = get_normalised_file_path(self.target)
+        logger.info(f"Updated {self.__repr__()} with new audio_filename!")
+
+    def get_audio_file(self):
         """wraps around the sound_api functionality"""
         if not self.target:
-            logger.error(f"Flashcard object has no target yet!")
+            logger.error(f"{self.__repr__()} has no target yet!")
+            return
+        if exists("./audios/" + self.audio_filename):
+            logger.error(f"{self.__repr__()} has matching audio downloaded!")
             return
         success, audio_filename = download_foreign_audio(LANG_MAP[self.target_lang]["sot_code"],
                                                          self.target,
                                                          './audios/')
         if not success:
-            logger.error("Did not update flashcard with audio filepath!")
+            logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
-        self.audio_filename = audio_filename
-        logger.info(f"Updated «{fc.source}» with audio filepath!")

@@ -30,12 +30,12 @@ def request_translation_from_api(target_lang: str, query: str, source_lang: str 
     translator = deepl.Translator(api_key)
 
     try: 
-        logger.info(f"Made request: query: {query} | target_lang: {target_lang} | source_lang: {source_lang} | context: {context}")
+        logger.debug(f"Made request: query: {query} | target_lang: {target_lang} | source_lang: {source_lang} | context: {context}")
         res = translator.translate_text(query,
                                         target_lang=target_lang,
                                         source_lang=source_lang,
                                         context=context)
-        logger.info(f"Received response: translation: {res} | target_lang: {target_lang} | source_lang: {source_lang}")
+        logger.debug(f"Received response: translation: {res} | target_lang: {target_lang} | source_lang: {source_lang}")
     except deepl.exceptions.DeepLException as e:
         logger.error(f"There was a problem!")
         logger.error(e)
@@ -43,5 +43,5 @@ def request_translation_from_api(target_lang: str, query: str, source_lang: str 
     else:
         translation = res.text
         detected_source = None if target_lang is None else res.detected_source_lang
-        logger.info(f"Request was successful! translation is {translation}")
+        logger.debug(f"Request was successful! translation is {translation}")
         return True, translation, detected_source

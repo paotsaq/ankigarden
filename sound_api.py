@@ -13,7 +13,9 @@ from time import (
         )
 import os
 
-def normalise_file_path(query: str) -> str:
+# NOTE this function is not necessarily of this scope;
+# maybe more fit for a `utils.py`?
+def get_normalised_file_path(query: str) -> str:
     return query.replace(" ", "_").lower().strip('.') + '.mp3'
 
 
@@ -94,7 +96,7 @@ def download_foreign_audio(language: str, query: str, audio_path: str) -> Tuple[
     if not retrieve_request_successful:
         logger.error(f"URL retrieval for {query} | audio_id: {audio_id} was not successful!")
         return False, None
-    file_name = normalise_file_path(query)
+    file_name = get_normalised_file_path(query)
     file_path = (audio_path +
                  ('/' if audio_path[0] != '/' else
                   '') +
