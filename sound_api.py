@@ -35,7 +35,7 @@ def request_sound_from_api(language: str, query: str) -> Tuple[bool, str]:
         return False, None
     else:
         audio_id = loads(res.content)['id']
-        logger.info(f"Request was successful! audio_id is {audio_id}")
+        logger.debug(f"Request was successful! audio_id is {audio_id}")
         return True, audio_id
 
 
@@ -61,7 +61,7 @@ def retrieve_sound_from_api(audio_id: str, retries: int) -> Tuple[bool, str]:
             return request_sound_from_api(audio_id, retries + 1)
         else:
             audio_url = loads(res.content)['location']
-            logger.info(f"Request was successful!\naudio_url is {audio_url}")
+            logger.debug(f"Request was successful!\naudio_url is {audio_url}")
             return True, audio_url
     elif res.status_code == 400:
         logger.error(f"Response code was {res.status_code}!")
@@ -78,7 +78,7 @@ def saves_audio_file(web_audio_path: str, file_path: str) -> bool:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     file.write(chunk)
-        logger.info(f'Successfully downloaded {file_path}')
+        logger.debug(f'Successfully downloaded {file_path}')
         return True
     else:
         logger.error(f'Failed to download the file.\nStatus code: {response.status_code}')
@@ -114,4 +114,3 @@ def get_bulk_audio_from_textfile(target: str, source_file_path: str, dest_file_p
             logger.info(f"Handling query for {query}...")
             download_foreign_audio(target, query, dest_file_path)
     logger.info("All done!")
-

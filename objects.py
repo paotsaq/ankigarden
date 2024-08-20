@@ -62,4 +62,6 @@ class Flashcard(Base):
                                                          './audios/')
         if not success:
             logger.error("Did not update flashcard with audio filepath!")
+            return 
         self.audio_filename = audio_filename
+        logger.info(f"Updated «{fc.source}» with audio filepath!")
