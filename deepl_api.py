@@ -45,11 +45,3 @@ def request_translation_from_api(target_lang: str, query: str, source_lang: str 
         detected_source = None if target_lang is None else res.detected_source_lang
         logger.info(f"Request was successful! translation is {translation}")
         return True, translation, detected_source
-
-
-
-# def get_danish_noun_with_article(query: str) -> Tuple[bool, str]:
-    # """query must be without article, ideally just a single word"""
-    # success, translation, _ = request_translation_from_api("DA", query)
-    # if not success:
-        # return False, None
