@@ -18,7 +18,7 @@ class Flashcard(Base):
     __tablename__ = 'flashcards'
 
     id = Column(Integer, primary_key=True)
-    source = Column(String)
+    source = Column(String, unique=True)
     source_lang = Column(String)
     target = Column(String)
     target_lang = Column(String)
@@ -28,6 +28,8 @@ class Flashcard(Base):
     content_type = Column(String)
     tags = Column(String)  # Assuming tags are stored as a comma-separated string for simplicity
     notetype = Column(String)
+    # NOTE the following is a boolean; 
+    added = Column(Integer, default=0)
 
     def __repr__(self):
         return ("|" +

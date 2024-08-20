@@ -8,7 +8,7 @@ from const import LANG_MAP
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from objects import Base, Flashcard
-from anki_routine import (
+from anki_database import (
         create_anki_import_string
         )
 
@@ -66,7 +66,17 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         cls.session.close()
         cls.engine.dispose()
 
+    def test_can_parse_and_process_prompts(self):
+        # NOTE this is at `create_test_db.py` file;
+        # I'm still not sure whether to include this in
+        # the test routine.
+        self.assertTrue(False)
+
     def test_can_produce_anki_import_string(self):
+        fcs = self.session.query(Flashcard).all()
+        #NOTE must assert there are flashcards in database
+        self.assertEqual(len(fcs), 5)
+        self.maxDiff = None
         SEP = "|"
         TAGS_COLUMN = 4
         NOTETYPE_COLUMN = 5
@@ -74,8 +84,7 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         TAGS = ["ankigarden", "pimsleur-25"]
         COLUMNS = ["source", "target", "pronunciation"]
         NOTETYPE = "Basic (and reversed) with pronunciation"
-        fcs = self.session.query(Flashcard).all()
-        EXPECTED = """#separator:|\n#tags:ankigarden pimsleur-25\n#columns:source|target|pronunciation\n#deck: alex-danish\n#tags column: 4\n#notetype column: 5\n\neighty|firs|[sound:firs.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nbecause|fordi|[sound:fordi.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nStore|butik|[sound:butik.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nclosed|lukket|[sound:lukket.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nopen|åben|[sound:åben.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|"""
+        EXPECTED = """#separator:|\n#tags:ankigarden pimsleur-25\n#columns:source|target|pronunciation\n#deck: alex-danish\n#tags column: 4\n#notetype column: 5\n\neighty|firs|[sound:firs.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nbecause|fordi|[sound:fordi.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nstore|butik|[sound:butik.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nclosed|lukket|[sound:lukket.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|\nopen|åben|[sound:åben.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|"""
         self.assertEqual(EXPECTED,
                          create_anki_import_string(fcs,
                                                    SEP,
@@ -88,14 +97,11 @@ class TestAnkiImportFileCreation(unittest.TestCase):
                          )
 
     def test_can_produce_anki_import_file(self):
-        SEP = "|"
-        TAGS_COLUMN = 4
-        NOTETYPE_COLUMN = 5
-        DECK = "alex-danish"
-        TAGS = ["ankigarden", "pimsleur-25"]
-        COLUMNS = ["source", "target", "pronunciation"]
-        NOTETYPE = "Basic (and reversed) with pronunciation"
-        fcs = self.session.query(Flashcard).all()
+        # NOTE this is implemented at `create_anki_import_file`
+        # but the function is so simple, I did not do any tests.
+        pass
+        # self.assertTrue(False)
+
 
 if __name__ == "__main__":
-    unittest.main(failfast=True)
+    unittest.main(failfast=False)

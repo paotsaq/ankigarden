@@ -1,0 +1,12 @@
+#separator:|
+#tags:ankigarden pimsleur-25
+#columns:source|target|pronunciation
+#deck: alex-danish
+#tags column: 4
+#notetype column: 5
+
+eighty|firs|[sound:firs.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|
+because|fordi|[sound:fordi.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|
+Store|butik|[sound:butik.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|
+closed|lukket|[sound:lukket.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|
+open|åben|[sound:åben.mp3]|ankigarden pimsleur-25|Basic (and reversed) with pronunciation|
