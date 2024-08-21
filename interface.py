@@ -38,6 +38,7 @@ class FlashcardRow(Widget):
         self.source = self.fc.source
         self.target = self.fc.target
         self.tags = self.fc.tags
+        self.fc.get_audio_file_path()
 
     def compose(self) -> ComposeResult:
         yield Container(
@@ -45,8 +46,8 @@ class FlashcardRow(Widget):
                     Placeholder(variant="size", classes="flashcardLineStatus"),
                     Input(value=self.target, classes="flashcardLineInput", id="target_input"),
                     Input(value=self.source, placeholder="source", classes="flashcardLineInput", id="source_input"),
-                    Input(placeholder="audio query", classes="flashcardLineInput"),
                     Input(placeholder="tags", classes="flashcardLineInput"),
+                    Input(value=self.fc.audio_filename, placeholder="audio query", classes="flashcardLineInput", id="audio_input"),
                     Vertical(Button(classes="flashcardLineButton"),
                              Button(classes="flashcardLineButton"))
                     ),
@@ -69,6 +70,7 @@ class FlashcardRow(Widget):
         self.styles.animate("opacity", value=1.0, duration=DURATION, delay=DURATION)
         self.post_message(self.Submitted(self.fc, self.id))
         print(f"on widget: {self.fc}")
+
 
 class FlashcardPanel(Widget):
     """Oversees creation and modification of Flashcard objects

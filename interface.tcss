@@ -15,7 +15,7 @@ FlashcardPanel {
 }
 
 FlashcardRow {
-	height: 15vh;
+	height: 20vh;
 	max-height: 30%;
 }
 
