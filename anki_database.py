@@ -103,7 +103,7 @@ def create_anki_import_string(fcs: list[Flashcard],
                                   fc.source,
                                   fc.target,
                                   f"[sound:{fc.audio_filename}]",
-                                  " ".join(TAGS),
+                                  " ".join(TAGS + [fc.tags]),
                                   NOTETYPE]) + "|",
                               fcs)))
     return "\n\n".join([header, body])
