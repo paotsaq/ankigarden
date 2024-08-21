@@ -1,0 +1,43 @@
+Screen {
+    align: center middle;
+}
+
+.batchInfo {
+	height: 10vh;
+}
+
+FlashcardPanel {
+    height: 80vh;
+    background: $panel;
+    color: $text;
+    border: $secondary tall;
+	overflow-y: scroll;
+}
+
+FlashcardRow {
+	height: 15vh;
+	max-height: 30%;
+}
+
+.flashcardRow {
+    background: $panel;
+    color: $text;
+    border: $secondary tall;
+}
+
+.flashcardLineInput {
+	width: 20vw;
+	height: auto;
+}
+
+.flashcardLineStatus {
+	padding: 2 2;
+	width: 4vw;
+	height: 2vh;
+}
+
+.flashcardLineButton {
+	width: 4vw;
+	height: 10%;
+}
+
