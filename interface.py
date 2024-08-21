@@ -13,6 +13,7 @@ from anki_database import (
 from logger import logger
 from time import sleep
 
+
 class FlashcardRow(Widget):
     """handles each row, representing a single flashcard;
        any changes will trigger a recompose of the element."""
@@ -56,6 +57,7 @@ class FlashcardRow(Widget):
         """requests translation and sends
         updated flashcard to parent widget"""
         if event.input.id == "target_input":
+            self.target = event.input.value
             self.fc.target = event.input.value
             self.fc.get_source_from_target()
             self.source = self.fc.source
@@ -66,6 +68,7 @@ class FlashcardRow(Widget):
         self.styles.animate("opacity", value=0.0, duration=DURATION)
         self.styles.animate("opacity", value=1.0, duration=DURATION, delay=DURATION)
         self.post_message(self.Submitted(self.fc, self.id))
+        print(f"on widget: {self.fc}")
 
 class FlashcardPanel(Widget):
     """Oversees creation and modification of Flashcard objects
@@ -104,9 +107,12 @@ class FlashcardPanel(Widget):
     def on_flashcard_row_submitted(self, message):
         # look for which flashcard it corresponds to, via its id
         for fc in self.fcs:
+            print(fc, fc.id, message.id)
             if fc.id == message.id:
                 self.fcs.remove(fc)
                 self.fcs.append(message.fc)
+                print("FOUND IT!")
+                break
         print(self.fcs)
 
 

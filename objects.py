@@ -25,9 +25,9 @@ class Flashcard(Base):
 
     id = Column(Integer, primary_key=True)
     source = Column(String, unique=True)
-    source_lang = Column(String)
+    source_lang = Column(String, default="English")
     target = Column(String)
-    target_lang = Column(String)
+    target_lang = Column(String, default="Danish")
     # NOTE not always do we want the audio to match the target
     # for example, with Danish nouns,
     # `friend` is `ven`, but `the friend` is `vennen`,
