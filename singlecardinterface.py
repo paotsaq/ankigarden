@@ -93,11 +93,10 @@ class SingleFlashcardPanel(Widget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.fc = Flashcard(id='fc1',
-                        source="",
-                        source_lang="English",
-                        target = "",
-                        target_lang="Danish")
+        self.fc = Flashcard(source="",
+                            source_lang="English",
+                            target = "",
+                            target_lang="Danish")
 
     def compose(self) -> ComposeResult:
         yield FlashcardColumn(self.fc)
