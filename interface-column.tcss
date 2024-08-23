@@ -2,36 +2,26 @@ Screen {
     align: center middle;
 }
 
-.batchInfo {
-	height: 10vh;
-}
-
 SingleFlashcardPanel {
-	padding: 0 40;
-	max-height: 70vh;
-    background: $panel;
+	padding: 2 0;
+	max-width: 60;
     color: $text;
-    border: $secondary tall;
 }
 
-FlashcardColumn {
-	align: center middle;
-}
 
 .flashcardColumn {
-    background: $panel;
+	content-align: center middle;
+	padding: 1 1;
     color: $text;
     border: $secondary tall;
+}
+
+.flashcardLineInput {
+	max-width: 70;
 }
 
 .flashcardAudioInput {
-	max-width: 27vw;
-}
-
-.flashcardLineStatus {
-	padding: 2 2;
-	width: 4vw;
-	height: 2vh;
+	max-width: 40;
 }
 
 .flashcardButton {

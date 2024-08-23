@@ -7,6 +7,7 @@ from textual.widgets import (
         Button,
         ListItem,
         ListView,
+        Header,
         Footer
         )
 from textual.reactive import reactive
@@ -84,20 +85,22 @@ class FlashcardColumn(Widget):
                 Vertical(
                     EscapableInput(value=self.context, placeholder="context?",
                                    classes="flashcardLineInput", id="context_input"),
-                    EscapableInput(value=self.target, placeholder=f"target {EMOJI_FLAG[self.fc.target_lang]}",
+                    EscapableInput(value=self.target,
+                                   placeholder=f"target {EMOJI_FLAG[self.fc.target_lang]}",
                           classes="flashcardLineInput", id="target_input"),
                     EscapableInput(placeholder="tags",
                           classes="flashcardLineInput", id="tags_input"),
-                    EscapableInput(value=self.source, placeholder=f"source {EMOJI_FLAG[self.fc.source_lang]}",
-                          classes="flashcardLineInput", id="source_input"),
+                    EscapableInput(value=self.source,
+                                   placeholder=f"source {EMOJI_FLAG[self.fc.source_lang]}",
+                                   classes="flashcardLineInput", id="source_input"),
                     Horizontal(
                         EscapableInput(value=self.target, placeholder="audio query",
                               classes="flashcardAudioInput", id="audio_input"),
-                        Button(label="download audio",
+                        Button(label="📡", disabled=True,
                                classes="flashcardLineButton", id="audio_button")),
                     Button(label="create flashcard",
                            classes="flashcardButton", id="flashcard_button")),
-                classes="flashcardRow")
+                classes="flashcardColumn")
 
         
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -155,31 +158,51 @@ class SingleFlashcardPanel(Widget):
             self.fc.context = self.query_one("#context_input").value
             self.fc.get_audio_file_path()
             self.fc.get_source_from_target()
-            self.query_one("#audio_button").label = f"Retrieve {self.fc.audio_filename}"
             self.query_one("#source_input").value = self.fc.source
             if self.query_one("#audio_input").value == "" :
                 self.query_one("#audio_input").value = self.fc.target
+            self.query_one("#audio_button").label = f"📡"
+            self.query_one("#audio_button").disabled = False
         # retrieves audio file
         if ((message.action == "audio_input" and
              self.query_one("#audio_input").value != "")):
             self.fc.get_audio_file()
-            self.query_one("#audio_button").label = f"Play {self.fc.audio_filename}"
+            self.query_one("#audio_button").label = "🗣️"
         # saves flashcard to database
         if message.action == "flashcard_button":
-            session, engine = create_connection_to_database(DATABASE_FILE_PATH)
-            session.add(self.fc)
-            session.commit()
-            close_connection_to_database(session, engine)
+            if (self.fc.target == "" or self.fc.source == ""):
+                self.query_one("#flashcard_button").variant = "warning"
+                self.query_one("#flashcard_button").label = "missing fields!"
+            else:
+                session, engine = create_connection_to_database(DATABASE_FILE_PATH)
+                session.add(self.fc)
+                session.commit()
+                close_connection_to_database(session, engine)
+
 
 
 class FlashcardCreator(App):
     CSS_PATH = "interface-column.tcss"
 
+    BINDINGS = [
+        ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
+        ("t", "focus_elem('target')", "(t)arget"),
+        ("s", "focus_elem('source')", "(s)ource"),
+        ("c", "focus_elem('context')", "(c)ontext"),
+        ("g", "focus_elem('tags')", "ta(g)s"),
+        ("a", "focus_elem('audio')", "(a)udio prompt"),
+        ("r", "focus_elem('retrieve')", "(r)etrieve audio"),
+        ("p", "focus_elem('play')", "(p)lay audio"),
+        ("f", "focus_elem('save')", "save (f)lashcard"),
+    ]
+
     def compose(self) -> ComposeResult:
-        yield Placeholder(classes="batchInfo")
+        yield Header()
         yield SingleFlashcardPanel()
         yield Footer()
 
+    def action_toggle_dark_mode(self) -> None:
+        self.dark = not(self.dark)
 
 if __name__ == "__main__":
     app = FlashcardCreator()
