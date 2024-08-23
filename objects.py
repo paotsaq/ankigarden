@@ -14,30 +14,43 @@ from const import (
         )
 from sqlalchemy import Column, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.schema import MetaData
 
+CONVENTION = {
+  "ix": "ix_%(column_0_label)s",
+  "uq": "uq_%(table_name)s_%(column_0_name)s",
+  "ck": "ck_%(table_name)s_%(constraint_name)s",
+  "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+  "pk": "pk_%(table_name)s"
+}
 
 class Base(DeclarativeBase):
-    pass
+
+    metadata = MetaData(naming_convention=CONVENTION)
 
 
 class Flashcard(Base):
     __tablename__ = 'flashcards'
 
-    id = Column(Integer, primary_key=True)
-    source = Column(String, unique=True)
+    id = Column(Integer, primary_key=True,
+                unique=True)
+    source = Column(String)
     source_lang = Column(String, default="English")
     target = Column(String)
     target_lang = Column(String, default="Danish")
+    # NOTE context is used to get more accurate translations
+    context = Column(Text)
     # NOTE not always do we want the audio to match the target
     # for example, with Danish nouns,
     # `friend` is `ven`, but `the friend` is `vennen`,
     # target will be `ven(nen)` but I want audio for `ven, vennen`
-    # target_audio_query = Column(String)
-    context = Column(Text)
-    deck = Column(String)
+    target_audio_query = Column(String)
     audio_filename = Column(String)
-    content_type = Column(String)
     tags = Column(String)  # Assuming tags are stored as a comma-separated string for simplicity
+    # NOTE content_type is still not very useful — but it might be
+    # to distinguish whether something is a noun or a verb, etc.
+    content_type = Column(String)
+    deck = Column(String)
     notetype = Column(String)
     # NOTE the following is a boolean; 
     added = Column(Integer, default=0)
