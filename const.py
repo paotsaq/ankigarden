@@ -6,6 +6,12 @@ SOUNDS_ENDPOINT = SOUND_API_BASE_URL + "sounds/"
 
 DATABASE_FILE_PATH = "/ankigarden.db"
 
+EMOJI_FLAG = {
+        "Danish": "🇩🇰",
+        "English": "🇬🇧",
+        "Greek": "🇬🇷",
+        }
+
 
 LANG_MAP = {
         "Danish": {

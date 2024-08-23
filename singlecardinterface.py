@@ -1,11 +1,21 @@
 from textual.app import App, ComposeResult, RenderResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import Input, Placeholder, Button, ListItem, ListView
+from textual.widgets import (
+        Input,
+        Placeholder,
+        Button,
+        ListItem,
+        ListView,
+        Footer
+        )
 from textual.reactive import reactive
 from textual.message import Message
 from objects import Flashcard
-from const import DATABASE_FILE_PATH
+from const import (
+        DATABASE_FILE_PATH,
+        EMOJI_FLAG
+        )
 from anki_database import (
         create_connection_to_database,
         close_connection_to_database,
@@ -14,6 +24,18 @@ from logger import logger
 from time import sleep
 from playsound import playsound
 from os.path import exists
+
+class EscapableInput(Input):
+
+    class EscapeRequest(Message):
+        """single purpose class to bubble
+        request to the parent widget to regain focus"""
+
+        def __init__(self) -> None:
+            super().__init__()
+
+    def key_escape(self) -> None:
+        self.post_message(self.EscapeRequest())
 
 
 class FlashcardColumn(Widget):
@@ -27,6 +49,17 @@ class FlashcardColumn(Widget):
     audio_query = reactive("", recompose=True)
     tags = reactive("", recompose=True)
 
+
+    BINDINGS = [
+        ("t", "focus_elem('target')", "(t)arget"),
+        ("s", "focus_elem('source')", "(s)ource"),
+        ("c", "focus_elem('context')", "(c)ontext"),
+        ("g", "focus_elem('tags')", "ta(g)s"),
+        ("a", "focus_elem('audio')", "(a)udio prompt"),
+        ("r", "focus_elem('retrieve')", "(r)etrieve audio"),
+        ("p", "focus_elem('play')", "(p)lay audio"),
+        ("f", "focus_elem('save')", "save (f)lashcard"),
+    ]
 
     class Submitted(Message):
         """single purpose class to bubble
@@ -49,16 +82,16 @@ class FlashcardColumn(Widget):
     def compose(self) -> ComposeResult:
         yield Container(
                 Vertical(
-                    Input(value=self.context, placeholder="context?",
-                          classes="flashcardLineInput", id="context_input"),
-                    Input(value=self.target, placeholder="target",
+                    EscapableInput(value=self.context, placeholder="context?",
+                                   classes="flashcardLineInput", id="context_input"),
+                    EscapableInput(value=self.target, placeholder=f"target {EMOJI_FLAG[self.fc.target_lang]}",
                           classes="flashcardLineInput", id="target_input"),
-                    Input(value=self.source, placeholder="source",
+                    EscapableInput(placeholder="tags",
+                          classes="flashcardLineInput", id="tags_input"),
+                    EscapableInput(value=self.source, placeholder=f"source {EMOJI_FLAG[self.fc.source_lang]}",
                           classes="flashcardLineInput", id="source_input"),
-                    Input(placeholder="tags",
-                          classes="flashcardLineInput"),
                     Horizontal(
-                        Input(value=self.target, placeholder="audio query",
+                        EscapableInput(value=self.target, placeholder="audio query",
                               classes="flashcardAudioInput", id="audio_input"),
                         Button(label="download audio",
                                classes="flashcardLineButton", id="audio_button")),
@@ -85,6 +118,17 @@ class FlashcardColumn(Widget):
             self.post_message(self.Submitted(self.fc,
                                              event.button.id))
             
+    def action_focus_elem(self, field: str) -> None:
+        if field in ["retrieve", "play"]:
+            self.query_one(f"#audio_button").action_press()
+        elif field == "save":
+            self.query_one(f"#flashcard_button").action_press()
+        else:
+            self.query_one(f"#{field}_input").focus()
+
+    def on_escapable_input_escape_request(self):
+        self.focus()
+
 
 class SingleFlashcardPanel(Widget):
     """Oversees creation and modification of a single Flashcard
@@ -134,8 +178,7 @@ class FlashcardCreator(App):
     def compose(self) -> ComposeResult:
         yield Placeholder(classes="batchInfo")
         yield SingleFlashcardPanel()
-        yield Placeholder(variant="text", classes="batchInfo")
-        yield Placeholder(classes="batchInfo")
+        yield Footer()
 
 
 if __name__ == "__main__":
