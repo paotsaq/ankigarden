@@ -163,6 +163,7 @@ class SingleFlashcardPanel(Widget):
                 self.query_one("#audio_input").value = self.fc.target
             self.query_one("#audio_button").label = f"📡"
             self.query_one("#audio_button").disabled = False
+            self.fc.tags = self.query_one("#tags_input").value
         # retrieves audio file
         if ((message.action == "audio_input" and
              self.query_one("#audio_input").value != "")):
@@ -194,6 +195,8 @@ class FlashcardCreator(App):
         ("r", "focus_elem('retrieve')", "(r)etrieve audio"),
         ("p", "focus_elem('play')", "(p)lay audio"),
         ("f", "focus_elem('save')", "save (f)lashcard"),
+        # TODO create new flashcard
+        # ("n", "focus_elem('save')", "save (f)lashcard"),
     ]
 
     def compose(self) -> ComposeResult:
