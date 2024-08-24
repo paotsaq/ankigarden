@@ -52,14 +52,13 @@ class FlashcardColumn(Widget):
 
 
     BINDINGS = [
+        ("c", "focus_elem('context')", "(c)ontext"),
         ("t", "focus_elem('target')", "(t)arget"),
         ("s", "focus_elem('source')", "(s)ource"),
-        ("c", "focus_elem('context')", "(c)ontext"),
         ("g", "focus_elem('tags')", "ta(g)s"),
-        ("a", "focus_elem('audio')", "(a)udio prompt"),
-        ("r", "focus_elem('retrieve')", "(r)etrieve audio"),
-        ("p", "focus_elem('play')", "(p)lay audio"),
-        ("f", "focus_elem('save')", "save (f)lashcard"),
+        ("a", "focus_elem('audio')", "(a)udio"),
+        ("p", "focus_elem('play')", "(p)lay "),
+        ("f", "focus_elem('save')", "save (f)c"),
     ]
 
     class Submitted(Message):
@@ -85,11 +84,11 @@ class FlashcardColumn(Widget):
                 Vertical(
                     EscapableInput(value=self.context, placeholder="context?",
                                    classes="flashcardLineInput", id="context_input"),
-                    EscapableInput(value=self.target,
-                                   placeholder=f"target {EMOJI_FLAG[self.fc.target_lang]}",
-                          classes="flashcardLineInput", id="target_input"),
                     EscapableInput(placeholder="tags",
                           classes="flashcardLineInput", id="tags_input"),
+                    EscapableInput(value=self.target,
+                                   placeholder=f"target {EMOJI_FLAG[self.fc.target_lang]}",
+                                   classes="flashcardLineInput", id="target_input"),
                     EscapableInput(value=self.source,
                                    placeholder=f"source {EMOJI_FLAG[self.fc.source_lang]}",
                                    classes="flashcardLineInput", id="source_input"),
@@ -105,11 +104,11 @@ class FlashcardColumn(Widget):
         
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """signals request for query to parent widget"""
-        DURATION = 0.3
-        self.styles.animate("opacity", value=0.0, duration=DURATION)
-        self.styles.animate("opacity", value=1.0, duration=DURATION, delay=DURATION)
         self.post_message(self.Submitted(self.fc, event.input.id))
-        print(f"on widget: {self.fc}\n{event}")
+        if event.input.id in ['target_input', 'audio_input']:
+            DURATION = 0.3
+            self.styles.animate("opacity", value=0.0, duration=DURATION)
+            self.styles.animate("opacity", value=1.0, duration=DURATION, delay=DURATION)
 
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  
@@ -122,7 +121,7 @@ class FlashcardColumn(Widget):
                                              event.button.id))
             
     def action_focus_elem(self, field: str) -> None:
-        if field in ["retrieve", "play"]:
+        if field == "play":
             self.query_one(f"#audio_button").action_press()
         elif field == "save":
             self.query_one(f"#flashcard_button").action_press()
@@ -137,40 +136,61 @@ class SingleFlashcardPanel(Widget):
     """Oversees creation and modification of a single Flashcard
     (which are, themselves, elements of our database)"""
 
+    fc = reactive(None, recompose=True)
 
     def __init__(self) -> None:
         super().__init__()
-        self.fc = Flashcard(source="",
-                            source_lang="English",
-                            target = "",
-                            target_lang="Danish")
+        self.fc = self.get_new_flashcard()
+
+    def get_new_flashcard(self):
+        return Flashcard(source="",
+                  source_lang="English",
+                  target = "",
+                  target_lang="Danish")
+
 
     def compose(self) -> ComposeResult:
         yield FlashcardColumn(self.fc)
 
+    def action_new_flashcard(self) -> None:
+        self.fc = self.get_new_flashcard()
+
     def on_flashcard_column_submitted(self, message):
         self.fc = message.fc
         # translation was requested from target to source
-        if ((message.action == "context_input" and
-            self.query_one("#target_input").value != "") or
-            (message.action == "target_input")):
+        if ((message.action == "target_input" or
+             message.action == "target_tags") and
+             self.query_one("#target_input").value != ""):
+            # update necessary fields
             self.fc.target = self.query_one("#target_input").value
             self.fc.context = self.query_one("#context_input").value
-            self.fc.get_audio_file_path()
+            # make request, update source
             self.fc.get_source_from_target()
             self.query_one("#source_input").value = self.fc.source
+            # update tags field, too
+            self.fc.tags = self.query_one("#tags_input").value
+            # update audio prompt field, without submitting
             if self.query_one("#audio_input").value == "" :
-                self.query_one("#audio_input").value = self.fc.target
+                # NOTE this is a bit of a hack, but it saves some time,
+                # and it should be updated in the future
+                if 'noun' in self.fc.tags:
+                    double_prompt = ",".join(2*[self.fc.target])
+                    self.query_one("#audio_input").value = double_prompt
+                else:
+                    self.fc.target_audio_query = self.fc.target
+                    self.query_one("#audio_input").value = self.fc.target
+        # retrieves audio file
+        elif ((message.action == "audio_input" and
+             self.query_one("#audio_input").value != "")):
+            # reupdates `target_audio_query` in case it was manually changed
+            self.fc.target_audio_query = self.query_one("#audio_input").value
+            self.fc.get_audio_file_path()
             self.query_one("#audio_button").label = f"📡"
             self.query_one("#audio_button").disabled = False
-            self.fc.tags = self.query_one("#tags_input").value
-        # retrieves audio file
-        if ((message.action == "audio_input" and
-             self.query_one("#audio_input").value != "")):
             self.fc.get_audio_file()
             self.query_one("#audio_button").label = "🗣️"
         # saves flashcard to database
-        if message.action == "flashcard_button":
+        elif message.action == "flashcard_button":
             if (self.fc.target == "" or self.fc.source == ""):
                 self.query_one("#flashcard_button").variant = "warning"
                 self.query_one("#flashcard_button").label = "missing fields!"
@@ -179,6 +199,7 @@ class SingleFlashcardPanel(Widget):
                 session.add(self.fc)
                 session.commit()
                 close_connection_to_database(session, engine)
+        self.query_one(FlashcardColumn).focus()
 
 
 
@@ -186,17 +207,8 @@ class FlashcardCreator(App):
     CSS_PATH = "interface-column.tcss"
 
     BINDINGS = [
+        ("n", "new_flashcard()", "(n)ew fc"),
         ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
-        ("t", "focus_elem('target')", "(t)arget"),
-        ("s", "focus_elem('source')", "(s)ource"),
-        ("c", "focus_elem('context')", "(c)ontext"),
-        ("g", "focus_elem('tags')", "ta(g)s"),
-        ("a", "focus_elem('audio')", "(a)udio prompt"),
-        ("r", "focus_elem('retrieve')", "(r)etrieve audio"),
-        ("p", "focus_elem('play')", "(p)lay audio"),
-        ("f", "focus_elem('save')", "save (f)lashcard"),
-        # TODO create new flashcard
-        # ("n", "focus_elem('save')", "save (f)lashcard"),
     ]
 
     def compose(self) -> ComposeResult:

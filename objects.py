@@ -78,7 +78,7 @@ class Flashcard(Base):
         logger.info(f"Updated {self.__repr__()} with source!")
 
     def get_audio_file_path(self):
-        self.audio_filename = get_normalised_file_path(self.target)
+        self.audio_filename = get_normalised_file_path(self.target_audio_query)
         logger.info(f"Updated {self.__repr__()} with new audio_filename!")
 
     def get_audio_file(self):
@@ -90,7 +90,7 @@ class Flashcard(Base):
             logger.error(f"{self.__repr__()} has matching audio downloaded!")
             return
         success, audio_filename = download_foreign_audio(LANG_MAP[self.target_lang]["sot_code"],
-                                                         self.target,
+                                                         self.target_audio_query,
                                                          './audios/')
         if not success:
             logger.error(f"Did not download audio for {self.__repr__()}!")
