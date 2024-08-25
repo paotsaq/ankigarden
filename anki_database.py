@@ -165,7 +165,6 @@ def send_request_to_anki(action: str, params: dict = None) -> bool | dict:
                            json=payload,
                            )
         logger.debug(f"Made request: {res}")
-        
         if res.status_code != 200:
             logger.error(f"Anki connect request for {action} had an error!")
             return False

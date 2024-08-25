@@ -20,6 +20,9 @@ from const import (
 from anki_database import (
         create_connection_to_database,
         close_connection_to_database,
+        create_anki_dict_from_flashcard,
+        send_request_to_anki,
+        move_audio_files_to_anki_mediadir
         )
 from logger import logger
 from time import sleep
@@ -147,10 +150,14 @@ class SingleFlashcardPanel(Widget):
         self.fc = self.get_new_flashcard()
 
     def get_new_flashcard(self):
+        # TODO this must be updated
         return Flashcard(source="",
-                  source_lang="English",
-                  target = "",
-                  target_lang="Danish")
+                         source_lang="English",
+                         target = "",
+                         target_lang="Danish",
+                         deck="alex-danish",
+                         notetype='Basic (and reversed) with pronunciation'
+                         )
 
 
     def compose(self) -> ComposeResult:
@@ -200,10 +207,15 @@ class SingleFlashcardPanel(Widget):
                 self.query_one("#flashcard_button").variant = "warning"
                 self.query_one("#flashcard_button").label = "missing fields!"
             else:
-                session, engine = create_connection_to_database(DATABASE_FILE_PATH)
-                session.add(self.fc)
-                session.commit()
-                close_connection_to_database(session, engine)
+                fc_dict = create_anki_dict_from_flashcard(self.fc)
+                params={"notes": [fc_dict]}
+                test_can_add = send_request_to_anki("canAddNotesWithErrorDetail",
+                                                    params)
+                if test_can_add[0]:
+                    send_request_to_anki("addNotes", params)
+                    move_audio_files_to_anki_mediadir([self.fc])
+                else:
+                    logger.error(test_can_add)
         self.query_one(FlashcardColumn).focus()
 
 
