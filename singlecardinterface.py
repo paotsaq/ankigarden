@@ -138,6 +138,10 @@ class SingleFlashcardPanel(Widget):
 
     fc = reactive(None, recompose=True)
 
+    BINDINGS = [
+        ("n", "new_flashcard()", "(n)ew fc"),
+    ]
+
     def __init__(self) -> None:
         super().__init__()
         self.fc = self.get_new_flashcard()
@@ -154,6 +158,7 @@ class SingleFlashcardPanel(Widget):
 
     def action_new_flashcard(self) -> None:
         self.fc = self.get_new_flashcard()
+        self.focus()
 
     def on_flashcard_column_submitted(self, message):
         self.fc = message.fc
@@ -202,12 +207,10 @@ class SingleFlashcardPanel(Widget):
         self.query_one(FlashcardColumn).focus()
 
 
-
 class FlashcardCreator(App):
     CSS_PATH = "interface-column.tcss"
 
     BINDINGS = [
-        ("n", "new_flashcard()", "(n)ew fc"),
         ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
     ]
 
