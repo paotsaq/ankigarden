@@ -5,13 +5,16 @@ SOUND_API_BASE_URL = "https://api.soundoftext.com/"
 SOUNDS_ENDPOINT = SOUND_API_BASE_URL + "sounds/"
 
 DATABASE_FILE_PATH = "/ankigarden.db"
+ANKI_CONNECT_BASE_URL = "http://localhost:8765/"
+
+AUDIOS_SOURCE_DIR = "./audios/"
+AUDIOS_ANKI_DIR = "./anki_audios_dir/"
 
 EMOJI_FLAG = {
         "Danish": "🇩🇰",
         "English": "🇬🇧",
         "Greek": "🇬🇷",
         }
-
 
 LANG_MAP = {
         "Danish": {
