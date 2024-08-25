@@ -2,7 +2,9 @@ from logger import logger
 from objects import Flashcard
 from const import (
         LANG_MAP,
-        DATABASE_FILE_PATH
+        DATABASE_FILE_PATH,
+        AUDIOS_ANKI_DIR,
+        AUDIOS_SOURCE_DIR
         )
 from sqlalchemy import create_engine, update
 from sqlalchemy.orm import Session, sessionmaker
@@ -184,7 +186,7 @@ def create_anki_dict_from_flashcard(fc: Flashcard) -> dict:
                 # NOTE these are contextual and depend on `fc.notetype`
                 "source": fc.source,
                 "target": fc.target,
-                "pronunciation": "[" + fc.audio_filename + "]"
+                "pronunciation": "[sound:" + fc.audio_filename + "]"
                 },
             "tags": fc.tags.split()
             }
