@@ -10,6 +10,22 @@ ANKI_CONNECT_BASE_URL = "http://localhost:8765/"
 AUDIOS_SOURCE_DIR = "./audios/"
 AUDIOS_ANKI_DIR = "./anki_audios_dir/"
 
+USE_CONFIGS = {
+        "english-to-danish": {
+            "deck": "alex-danish",
+            "target_lang": "Danish",
+            "source_lang": "English",
+            "notetype": "Basic (and reversed) with pronunciation"
+            },
+        "english-to-greek": {
+            "deck": "alex-greek",
+            "target_lang": "Greek",
+            "source_lang": "English",
+            "notetype": "Basic (and reversed) with pronunciation"
+            }
+
+        }
+
 EMOJI_FLAG = {
         "Danish": "🇩🇰",
         "English": "🇬🇧",
@@ -17,6 +33,10 @@ EMOJI_FLAG = {
         }
 
 LANG_MAP = {
+        "Greek": {
+            "deepl_code": "EL",
+            "sot_code": "el-GK"
+            },
         "Danish": {
             "deepl_code": "DA",
             "sot_code": "da-DK"
