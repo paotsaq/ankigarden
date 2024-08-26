@@ -65,17 +65,32 @@ class Flashcard(Base):
                     ]) +
                 "|")
 
-    def get_source_from_target(self):
+    def get_source_from_target(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
+        if `invert`, then it reverses the query,
         defaults to english if self.source_lang is None"""
-        success, translation, _ = request_translation_from_api(target_lang=LANG_MAP[self.source_lang]["deepl_code"],
-                                                               query=self.target, 
-                                                               source_lang=LANG_MAP[self.target_lang]["deepl_code"],
+        # TODO this can be prettier
+        if invert:
+            target_lang = LANG_MAP[self.source_lang]["deepl_code"]
+            source_lang = LANG_MAP[self.target_lang]["deepl_code"]
+            query = self.source
+        else:
+            target_lang = LANG_MAP[self.target_lang]["deepl_code"]
+            source_lang = LANG_MAP[self.source_lang]["deepl_code"]
+            query = self.target
+        success, translation, _ = request_translation_from_api(target_lang=target_lang,
+                                                               query=query, 
+                                                               source_lang=source_lang,
                                                                context=self.context) 
         if not success:
-            logger.error("Did not update flashcard with new source!")
-        self.source = translation.lower()
-        logger.info(f"Updated {self.__repr__()} with source!")
+            logger.error("Did not update flashcard with translation!")
+            return False
+        if invert:
+            self.target = translation.lower()
+        else:
+            self.source = translation.lower()
+        logger.info(f"Updated {self.__repr__()} with translation!")
+        return True
 
     def get_audio_file_path(self):
         self.audio_filename = get_normalised_file_path(self.target_audio_query)

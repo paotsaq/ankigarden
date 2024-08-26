@@ -1,4 +1,5 @@
 from textual.app import App, ComposeResult, RenderResult
+from textual.screen import Screen
 from textual.containers import Container, Horizontal, Vertical
 from textual.widget import Widget
 from textual.widgets import (
@@ -8,14 +9,19 @@ from textual.widgets import (
         ListItem,
         ListView,
         Header,
-        Footer
+        Footer,
+        Static,
+        RadioSet,
+        RadioButton
         )
 from textual.reactive import reactive
 from textual.message import Message
 from objects import Flashcard
 from const import (
         DATABASE_FILE_PATH,
-        EMOJI_FLAG
+        EMOJI_FLAG,
+        USE_CONFIGS,
+        AUDIOS_SOURCE_DIR,
         )
 from anki_database import (
         create_connection_to_database,
@@ -30,6 +36,7 @@ from playsound import playsound
 from os.path import exists
 
 class EscapableInput(Input):
+    """just a class that communicates on esc key press"""
 
     class EscapeRequest(Message):
         """single purpose class to bubble
@@ -117,8 +124,8 @@ class FlashcardColumn(Widget):
     def on_button_pressed(self, event: Button.Pressed) -> None:  
         if event.button.id == "audio_button":
             if (self.fc.audio_filename != "" and
-                exists("./audios/" + self.fc.audio_filename)):
-                    playsound("./audios/" + self.fc.audio_filename)
+                exists(AUDIOS_SOURCE_DIR + self.fc.audio_filename)):
+                    playsound(AUDIOS_SOURCE_DIR + self.fc.audio_filename)
         elif event.button.id == "flashcard_button":
             self.post_message(self.Submitted(self.fc,
                                              event.button.id))
@@ -145,18 +152,16 @@ class SingleFlashcardPanel(Widget):
         ("n", "new_flashcard()", "(n)ew fc"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, current_config_key: str) -> None:
         super().__init__()
+        self.current_config = USE_CONFIGS[current_config_key]
         self.fc = self.get_new_flashcard()
 
     def get_new_flashcard(self):
-        # TODO this must be updated
-        return Flashcard(source="",
-                         source_lang="English",
-                         target = "",
-                         target_lang="Danish",
-                         deck="alex-danish",
-                         notetype='Basic (and reversed) with pronunciation'
+        return Flashcard(source_lang=self.current_config['source_lang'],
+                         target_lang=self.current_config['target_lang'],
+                         deck=self.current_config['deck'],
+                         notetype=self.current_config['notetype']
                          )
 
 
@@ -169,23 +174,30 @@ class SingleFlashcardPanel(Widget):
 
     def on_flashcard_column_submitted(self, message):
         self.fc = message.fc
-        # translation was requested from target to source
-        if ((message.action == "target_input" or
-             message.action == "target_tags") and
-             self.query_one("#target_input").value != ""):
-            # update necessary fields
-            self.fc.target = self.query_one("#target_input").value
+        # translation was requested
+        if ((message.action == "target_input" and
+             self.query_one("#target_input").value != "") or
+            (message.action == "source_input" and
+             self.query_one("#source_input").value != "")):
+            # context is always taken into account
             self.fc.context = self.query_one("#context_input").value
-            # make request, update source
-            self.fc.get_source_from_target()
-            self.query_one("#source_input").value = self.fc.source
             # update tags field, too
             self.fc.tags = self.query_one("#tags_input").value
+            # if source was input, then invert translation (get target),
+            # in any case, produce translation and update local widget variables
+            if message.action == "source_input":
+                self.fc.source = self.query_one("#source_input").value
+                self.fc.get_translation(invert=True)
+                self.query_one("#target_input").value = self.fc.target
+            else:
+                self.fc.target = self.query_one("#target_input").value
+                self.fc.get_translation()
+                self.query_one("#source_input").value = self.fc.source
             # update audio prompt field, without submitting
             if self.query_one("#audio_input").value == "" :
                 # NOTE this is a bit of a hack, but it saves some time,
                 # and it should be updated in the future
-                if 'noun' in self.fc.tags:
+                if 'noun' in self.fc.tags.split():
                     double_prompt = ",".join(2*[self.fc.target])
                     self.query_one("#audio_input").value = double_prompt
                 else:
@@ -201,7 +213,10 @@ class SingleFlashcardPanel(Widget):
             self.query_one("#audio_button").disabled = False
             self.fc.get_audio_file()
             self.query_one("#audio_button").label = "🗣️"
-        # saves flashcard to database
+        # saves flashcard to database;
+        # NOTE we might consider the possibility of saving incomplete flashcards
+        # (for example, in internet deprived environments it might still be useful
+        # to signal which flashcards should be made)
         elif message.action == "flashcard_button":
             if (self.fc.target == "" or self.fc.source == ""):
                 self.query_one("#flashcard_button").variant = "warning"
@@ -219,16 +234,37 @@ class SingleFlashcardPanel(Widget):
         self.query_one(FlashcardColumn).focus()
 
 
-class FlashcardCreator(App):
-    CSS_PATH = "interface-column.tcss"
+class SettingsPanel(Screen):
+    """A settings to panel to select languages"""
 
-    BINDINGS = [
-        ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
-    ]
+    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+
+    def __init__(self) -> None:
+        super().__init__()
+        # TODO this is not working like this
+        self.options_set = RadioSet([RadioButton(option)
+                                     for option in USE_CONFIGS])
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield SingleFlashcardPanel()
+        yield self.options_set
+        yield Footer()
+
+
+class FlashcardCreator(App):
+    CSS_PATH = "interface-column.tcss"
+
+    current_config = reactive("english-to-danish")
+
+    SCREENS = {"settings": SettingsPanel}
+    BINDINGS = [
+        ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
+        ("z", "push_screen('settings')", "settings")
+        ]
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield SingleFlashcardPanel(self.current_config)
         yield Footer()
 
     def action_toggle_dark_mode(self) -> None:
