@@ -35,6 +35,7 @@ from time import sleep
 from playsound import playsound
 from os.path import exists
 
+
 class EscapableInput(Input):
     """just a class that communicates on esc key press"""
 
@@ -239,29 +240,36 @@ class SingleFlashcardPanel(Widget):
 class SettingsPanel(Screen):
     """A settings to panel to select languages"""
 
-    BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
+    BINDINGS = [("escape", "exit_settings", "exit settings")]
 
-    def __init__(self) -> None:
+    def __init__(self, current_config) -> None:
         super().__init__()
-        # TODO this is not working like this
-        self.options_set = RadioSet([RadioButton(option)
-                                     for option in USE_CONFIGS])
+        self.current_config = current_config
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield self.options_set
+        with RadioSet(id="lang_options_radio"):
+            for option in USE_CONFIGS:
+                # TODO radio buttons can also be aesthetically configured
+                yield RadioButton(label=option, value=(option == self.current_config))
         yield Footer()
+
+    def action_exit_settings(self):
+        selected_lang = str(self.query_one("#lang_options_radio").pressed_button.label)
+        self.dismiss(selected_lang)
 
 
 class FlashcardCreator(App):
     CSS_PATH = "interface-column.tcss"
 
-    current_config = reactive("english-to-danish")
+    SCREENS = {"settings": SettingsPanel("")}
 
-    SCREENS = {"settings": SettingsPanel}
+    current_config = reactive("english-to-danish", recompose=True)
+
+
     BINDINGS = [
         ("d", "toggle_dark_mode()", "toggle (d)ark mode"),
-        ("z", "push_screen('settings')", "settings")
+        ("z", "show_settings()", "settings")
         ]
 
     def compose(self) -> ComposeResult:
@@ -271,6 +279,15 @@ class FlashcardCreator(App):
 
     def action_toggle_dark_mode(self) -> None:
         self.dark = not(self.dark)
+
+    def action_show_settings(self) -> None:
+        def check_settings_panel_quit(option: RadioButton):
+            """Helper function to determine outcomes of different screens"""
+            logger.info(f"screen_callback_content:\n{option}")
+            self.current_config = option
+
+        self.push_screen(SettingsPanel(self.current_config),
+                         check_settings_panel_quit)
 
 if __name__ == "__main__":
     app = FlashcardCreator()
