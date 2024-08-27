@@ -65,22 +65,24 @@ class Flashcard(Base):
                     ]) +
                 "|")
 
-    def get_source_from_target(self, invert: bool = False) -> bool:
+    def get_translation(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
         if `invert`, then it reverses the query,
         defaults to english if self.source_lang is None"""
-        # TODO this can be prettier
-        if invert:
+        # TODO this can be prettier, but I'll leave it for now
+        logger.debug(f"NOW ON SENDING { self.source_lang } { self.target_lang } {invert}")
+        if not invert:
             target_lang = LANG_MAP[self.source_lang]["deepl_code"]
             source_lang = LANG_MAP[self.target_lang]["deepl_code"]
-            query = self.source
+            query = self.target
         else:
             target_lang = LANG_MAP[self.target_lang]["deepl_code"]
             source_lang = LANG_MAP[self.source_lang]["deepl_code"]
-            query = self.target
+            query = self.source
+        logger.debug(target_lang, source_lang, query)
         success, translation, _ = request_translation_from_api(target_lang=target_lang,
                                                                query=query, 
-                                                               source_lang=source_lang,
+                                                               source_lang=source_lang[:2],
                                                                context=self.context) 
         if not success:
             logger.error("Did not update flashcard with translation!")

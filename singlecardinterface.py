@@ -193,8 +193,10 @@ class SingleFlashcardPanel(Widget):
                 self.fc.target = self.query_one("#target_input").value
                 self.fc.get_translation()
                 self.query_one("#source_input").value = self.fc.source
-            # update audio prompt field, without submitting
-            if self.query_one("#audio_input").value == "" :
+            # update audio prompt field when it is empty
+            # or NOTE target is very different? This needs to be rethought
+            if (self.query_one("#audio_input").value == "" or
+                self.fc.target not in self.query_one("#audio_input").value.split()):
                 # NOTE this is a bit of a hack, but it saves some time,
                 # and it should be updated in the future
                 if 'noun' in self.fc.tags.split():
