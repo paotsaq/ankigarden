@@ -255,7 +255,7 @@ class SingleFlashcardPanel(Widget):
             else:
                 self.fc.source = self.query_one("#source_input").value
                 self.fc.target = self.query_one("#target_input").value
-                self.fc.tags = self.query_one("#tags").value
+                self.fc.tags = self.query_one("#tags_input").value
                 fc_dict = create_anki_dict_from_flashcard(self.fc)
                 params={"notes": [fc_dict]}
                 test_can_add = send_request_to_anki("canAddNotesWithErrorDetail",
