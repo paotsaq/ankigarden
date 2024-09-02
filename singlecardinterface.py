@@ -35,6 +35,8 @@ from time import sleep
 from playsound import playsound
 from os.path import exists
 
+REPRODUCE = "(r)eproduce"
+RETRIEVE = "(r)etrieve"
 
 class EscapableInput(Input):
     """just a class that communicates on esc key press"""
@@ -68,7 +70,7 @@ class FlashcardColumn(Widget):
         ("s", "focus_elem('source')", "(s)ource"),
         ("g", "focus_elem('tags')", "ta(g)s"),
         ("a", "focus_elem('audio')", "(a)udio"),
-        ("p", "focus_elem('play')", "(p)lay "),
+        ("r", "focus_elem('play')", "(r)etrieve / (r)eproduce audio "),
         ("f", "focus_elem('save')", "save (f)c"),
     ]
 
@@ -106,7 +108,7 @@ class FlashcardColumn(Widget):
                     Horizontal(
                         EscapableInput(value=self.target, placeholder="audio query",
                               classes="flashcardAudioInput", id="audio_input"),
-                        Button(label="📡", disabled=True,
+                        Button(label="📡 no prompt!", disabled=True,
                                classes="flashcardLineButton", id="audio_button")),
                     Button(label="create flashcard",
                            classes="flashcardButton", id="flashcard_button")),
@@ -114,22 +116,23 @@ class FlashcardColumn(Widget):
 
         
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """signals request for query to parent widget"""
+        """signals request for query to parent widget;"""
         self.post_message(self.Submitted(self.fc, event.input.id))
-        if event.input.id in ['target_input', 'audio_input']:
+        # NOTE maybe this could be protected on the Submitted class 
+        if ((event.input.id == "target_input" and
+             self.query_one("#target_input").value != "") or
+            (event.input.id == "source_input" and
+             self.query_one("#source_input").value != "")):
+        # NOTE this is mostly just a visual hack to give it some flair.
             DURATION = 0.3
             self.styles.animate("opacity", value=0.0, duration=DURATION)
             self.styles.animate("opacity", value=1.0, duration=DURATION, delay=DURATION)
 
 
     def on_button_pressed(self, event: Button.Pressed) -> None:  
-        if event.button.id == "audio_button":
-            if (self.fc.audio_filename != "" and
-                exists(AUDIOS_SOURCE_DIR + self.fc.audio_filename)):
-                    playsound(AUDIOS_SOURCE_DIR + self.fc.audio_filename)
-        elif event.button.id == "flashcard_button":
-            self.post_message(self.Submitted(self.fc,
-                                             event.button.id))
+        # elif event.button.id == "flashcard_button":
+        self.post_message(self.Submitted(self.fc,
+                                         event.button.id))
             
     def action_focus_elem(self, field: str) -> None:
         if field == "play":
@@ -174,18 +177,21 @@ class SingleFlashcardPanel(Widget):
         self.focus()
 
     def on_flashcard_column_submitted(self, message):
+        """one of the fields was submitted;
+        a series of actions are taking place"""
         self.fc = message.fc
-        # translation was requested
+        # the tags and context are always updated
+        self.fc.context = self.query_one("#context_input").value
+        self.fc.tags = self.query_one("#tags_input").value
+        # target or source were input;
+        # audio_input will be automatically generated
         if ((message.action == "target_input" and
              self.query_one("#target_input").value != "") or
             (message.action == "source_input" and
              self.query_one("#source_input").value != "")):
-            # context is always taken into account
-            self.fc.context = self.query_one("#context_input").value
-            # update tags field, too
-            self.fc.tags = self.query_one("#tags_input").value
             # if source was input, then invert translation (get target),
             # in any case, produce translation and update local widget variables
+            # NOTE this could probably be a bit better; but it works
             if message.action == "source_input":
                 self.fc.source = self.query_one("#source_input").value
                 self.fc.get_translation(invert=True)
@@ -194,6 +200,7 @@ class SingleFlashcardPanel(Widget):
                 self.fc.target = self.query_one("#target_input").value
                 self.fc.get_translation()
                 self.query_one("#source_input").value = self.fc.source
+
             # update audio prompt field when it is empty
             # or NOTE target is very different? This needs to be rethought
             if (self.query_one("#audio_input").value == "" or
@@ -206,16 +213,37 @@ class SingleFlashcardPanel(Widget):
                 else:
                     self.fc.target_audio_query = self.fc.target
                     self.query_one("#audio_input").value = self.fc.target
-        # retrieves audio file
-        elif ((message.action == "audio_input" and
+                self.fc.audio_filename = self.query_one("#audio_input").value
+                # updates audio button
+                self.query_one("#audio_button").disabled = False
+                self.query_one("#audio_button").label = "(r)etrieve"
+
+        # handles the audio files
+        elif ((message.action == "audio_button" and
              self.query_one("#audio_input").value != "")):
-            # reupdates `target_audio_query` in case it was manually changed
+            # audio file is already downloaded, and it exists
+            # NOTE the label query certifies the audio wasn't manually changed via audio_input
+            logger.debug("AUDIO BUTTON WAS ACTIVATED")
+            # TODO the query below could be refactored
+            if (self.query_one("#audio_button").label._text[0] == REPRODUCE and
+                self.fc.audio_filename != None and
+                exists(AUDIOS_SOURCE_DIR + self.fc.audio_filename)):
+                    logger.debug(f"will play sound for {self.fc.audio_filename}")
+                    playsound(AUDIOS_SOURCE_DIR + self.fc.audio_filename)
+            else:
+                # reupdates `target_audio_query` in case it was manually changed
+                self.fc.target_audio_query = self.query_one("#audio_input").value
+                self.fc.get_audio_file_path()
+                self.fc.get_audio_file()
+                self.query_one("#audio_button").label = REPRODUCE
+        # input was manually changed; this will also update the button label
+        elif ((message.action == "audio_input" and 
+               self.fc.target_audio_query != self.query_one("#audio_input").value)):
             self.fc.target_audio_query = self.query_one("#audio_input").value
-            self.fc.get_audio_file_path()
-            self.query_one("#audio_button").label = f"📡"
-            self.query_one("#audio_button").disabled = False
-            self.fc.get_audio_file()
-            self.query_one("#audio_button").label = "🗣️"
+            # NOTE it would maybe also be nice to erase the previous audio if generated,
+            # so as not to clutter Anki's collection?
+            self.query_one("#audio_button").label = "(r)etrieve"
+
         # saves flashcard to database;
         # NOTE we might consider the possibility of saving incomplete flashcards
         # (for example, in internet deprived environments it might still be useful
@@ -225,6 +253,9 @@ class SingleFlashcardPanel(Widget):
                 self.query_one("#flashcard_button").variant = "warning"
                 self.query_one("#flashcard_button").label = "missing fields!"
             else:
+                self.fc.source = self.query_one("#source_input").value
+                self.fc.target = self.query_one("#target_input").value
+                self.fc.tags = self.query_one("#tags").value
                 fc_dict = create_anki_dict_from_flashcard(self.fc)
                 params={"notes": [fc_dict]}
                 test_can_add = send_request_to_anki("canAddNotesWithErrorDetail",
