@@ -54,4 +54,4 @@ USE_CONFIGS = {
 
 Then...err...fool around! It __should__ work, but you know how to reach me for any questions or problems arising (and I'll try to fix them, too!).
 
-Oh, and I almost forgot: for now, it runs as `python singlecardinterface.py`
+Oh, and I almost forgot: for now, it runs as `python main.py`
