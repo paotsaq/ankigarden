@@ -16,14 +16,14 @@ from textual.widgets import (
         )
 from textual.reactive import reactive
 from textual.message import Message
-from objects import Flashcard
+from db.objects import Flashcard
 from const import (
         DATABASE_FILE_PATH,
         EMOJI_FLAG,
         USE_CONFIGS,
         AUDIOS_SOURCE_DIR,
         )
-from anki_database import (
+from apis.anki_database import (
         create_connection_to_database,
         close_connection_to_database,
         create_anki_dict_from_flashcard,
@@ -319,7 +319,3 @@ class FlashcardCreator(App):
 
         self.push_screen(SettingsPanel(self.current_config),
                          check_settings_panel_quit)
-
-if __name__ == "__main__":
-    app = FlashcardCreator()
-    app.run()

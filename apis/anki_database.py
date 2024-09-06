@@ -1,5 +1,5 @@
 from logger import logger
-from objects import Flashcard
+from db.objects import Flashcard
 from const import (
         LANG_MAP,
         DATABASE_FILE_PATH,
@@ -8,7 +8,6 @@ from const import (
         )
 from sqlalchemy import create_engine, update
 from sqlalchemy.orm import Session, sessionmaker
-from objects import Base, Flashcard
 from sqlalchemy.engine.base import Engine
 import json
 from const import ANKI_CONNECT_BASE_URL

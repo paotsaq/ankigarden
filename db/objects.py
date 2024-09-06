@@ -1,10 +1,10 @@
 from os.path import (
         exists
         )
-from deepl_api import (
+from apis.deepl_api import (
     request_translation_from_api
         )
-from sound_api import (
+from apis.sound_api import (
     download_foreign_audio,
     get_normalised_file_path
         )
@@ -70,6 +70,7 @@ class Flashcard(Base):
         if `invert`, then it reverses the query,
         defaults to english if self.source_lang is None"""
         # TODO this can be prettier, but I'll leave it for now
+        # NOTE is it sensible to have api dependencies out of this module?
         logger.debug(f"NOW ON SENDING { self.source_lang } { self.target_lang } {invert}")
         if not invert:
             target_lang = LANG_MAP[self.source_lang]["deepl_code"]
