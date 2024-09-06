@@ -51,11 +51,11 @@ class TestAnkiConnectInterface(unittest.TestCase):
                     'modelName': 'Basic (and reversed) with pronunciation',
                     'fields': {'source': 'how long do you think it is open?',
                                'target': 'hvor længe tror du, der er åbent?',
-                               'pronunciation': '[hvor_længe_er_der_åbent?.mp3]'},
+                               'pronunciation': '[sound:hvor_længe_er_der_åbent?.mp3]'},
                     'tags': ['ankigarden',
                              'pimsleur-26']
                     }
-        self.assertTrue(fc_dict == EXPECTED)
+        self.assertEqual(fc_dict, EXPECTED)
 
 
     def test_successful_query_into_adding_note(self):
@@ -65,6 +65,7 @@ class TestAnkiConnectInterface(unittest.TestCase):
         params = {"notes": notes}
         res = send_request_to_anki(action, params)
         self.assertTrue(all(res))
+
 
     def test_successful_adds_note(self):
         action = "addNotes"

@@ -4,7 +4,7 @@ from routine import (
     get_bulk_translation_and_audio_from_textfile
         )
 from sound_api import (
-        normalise_file_path
+        get_normalised_file_path
         )
 from os.path import (
         exists
@@ -30,7 +30,7 @@ class TestFirstStepInRoutine(unittest.TestCase):
         # NOTE not exactly the best test; translations may vary...
         self.assertEqual(translation, "Jeg vil virkelig gerne lære sprog effektivt.")
 
-        NORMALISED_FILENAME = normalise_file_path(translation)
+        NORMALISED_FILENAME = get_normalised_file_path(translation)
         self.assertTrue(exists(DEST_FILE_PATH + NORMALISED_FILENAME))
 
         # Delete the file
@@ -45,9 +45,9 @@ class TestFirstStepInRoutine(unittest.TestCase):
 class TestBulkAudioGeneration(unittest.TestCase):
 
     def test_can_receive_various_prompts_in_file(self):
-        PROMPT_FILE = "./test_prompts.txt"
+        PROMPT_FILE = "./tests/test-files/test_prompts.txt"
         TARGET = "DA"
-        DEST_FILE_PATH = "./audios/"
+        DEST_FILE_PATH = "./tests/audios/"
         get_bulk_translation_and_audio_from_textfile(TARGET, PROMPT_FILE, DEST_FILE_PATH)
         self.assertTrue(exists(DEST_FILE_PATH + "det_burde_fungere_rigtig_godt.mp3"))
         self.assertTrue(exists(DEST_FILE_PATH + "det_er_en_simpel_ting.mp3"))

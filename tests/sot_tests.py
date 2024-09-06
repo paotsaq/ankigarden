@@ -75,7 +75,7 @@ class TestRoutineDownloadSoT(unittest.TestCase):
     def test_can_download_audio_file(self):
         language = "da-DK"
         query = "Jeg siger interessante ting"
-        FILE_SAVE_PATH = "./audios/"
+        FILE_SAVE_PATH = "./tests/audios/"
         
         success, audio_filename = download_foreign_audio(language, query, FILE_SAVE_PATH)
         self.assertTrue(success)

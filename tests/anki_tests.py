@@ -16,6 +16,7 @@ from anki_database import (
         import_prompts_from_text_file_to_database
         )
 
+TEST_FILES_DIR = "tests/test-files/"
 
 class TestSimpleDatabaseHandling(unittest.TestCase):
 
@@ -92,7 +93,7 @@ class TestPromptFileHandlingFlashcardCreation(unittest.TestCase):
                         first_fc.tags == "common-phrases nice sentence")
 
     def test_can_parse_prompt_file_and_create_flashcards(self):
-        prompts_filepath = "test-last-prompts.txt"
+        prompts_filepath = TEST_FILES_DIR + "test-last-prompts.txt"
         import_prompts_from_text_file_to_database(prompts_filepath,
                                                   self.session,
                                                   "Danish",
@@ -107,7 +108,7 @@ class TestAnkiImportFileCreation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Setup test database
-        cls.engine = create_engine('sqlite:///test-ankigarden.db')
+        cls.engine = create_engine('sqlite:///./tests/test-ankigarden.db')
         Base.metadata.create_all(cls.engine)
         # NOTE what?
         cls.Session = sessionmaker(bind=cls.engine)
@@ -124,6 +125,8 @@ class TestAnkiImportFileCreation(unittest.TestCase):
         self.assertEqual(len(fcs), 5)
 
     def test_can_produce_anki_import_string(self):
+        # NOTE I seem to have lost the database at some point.
+        # must recreate it at some point
         fcs = retrieve_all_flashcards_from_database(self.session)
         self.maxDiff = None
         SEP = "|"
@@ -152,4 +155,4 @@ class TestAnkiImportFileCreation(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(failfast=True)
+    unittest.main()
