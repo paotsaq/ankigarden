@@ -39,6 +39,8 @@ AUDIOS_SOURCE_DIR = "./audios/"
 AUDIOS_ANKI_DIR = "./anki_audios_dir/"
 ```
 
+The `AUDIOS_SOURCE_DIR` is a temporary directory in which generated audio files are stored; upon flashcard creation, they are moved to `AUDIOS_ANKI_DIR` — this latter is not arbitrary: [the official documentation](https://docs.ankiweb.net/files.html#file-locations) discloses the paths (which are different between Windows and Linux). For example, mine is at `~/.local/share/Anki2/alex/collection.media`, but then I created a symbolic link (similar to Windows' shortcuts) and mapped it to `anki_audios_dir`.
+
 My `USE_CONFIG` for Danish, for example:
 
 ```
