@@ -1,5 +1,5 @@
 import unittest
-from deepl_api import (
+from apis.deepl_api import (
     request_translation_from_api
         )
 from os.path import (
