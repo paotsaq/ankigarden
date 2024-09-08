@@ -1,9 +1,9 @@
 import unittest
-from objects import Flashcard
+from db.objects import Flashcard
 from typing import Tuple
 from logger import logger
 from pprint import pprint as pp
-from anki_database import (
+from apis.anki_database import (
         send_request_to_anki,
         create_anki_dict_from_flashcard
         )
