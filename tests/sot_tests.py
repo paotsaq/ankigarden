@@ -54,11 +54,10 @@ class TestSaveAudioFileFromRequest(unittest.TestCase):
 
     def test_save_file_from_request(self):
         """follows a link to save a file in a directory"""
-        AUDIO_FOLDER = "./audios/"
         VALID_AUDIO_PATH = "https://files.soundoftext.com/a6a76b50-596a-11ef-bbfe-19a6f1097474.mp3"
-        success, audio_path = saves_audio_file(VALID_AUDIO_PATH, AUDIO_FOLDER)
-        self.assertTrue(res)
-        FILE_SAVE_PATH = AUDIO_FOLDER + audio_path
+        FILE_SAVE_PATH = "./tests/audios/test.mp3"
+        success = saves_audio_file(VALID_AUDIO_PATH, FILE_SAVE_PATH)
+        self.assertTrue(success)
         self.assertTrue(exists(FILE_SAVE_PATH))
 
         # Delete the file
@@ -80,10 +79,10 @@ class TestRoutineDownloadSoT(unittest.TestCase):
         success, audio_filename = download_foreign_audio(language, query, FILE_SAVE_PATH)
         self.assertTrue(success)
         # Delete the file
-        remove(audio_filename)
+        remove(FILE_SAVE_PATH + audio_filename)
 
         # Verify the file no longer exists
-        self.assertFalse(exists(audio_filename))
+        self.assertFalse(exists(FILE_SAVE_PATH + audio_filename))
 
 
 if __name__ == "__main__":
