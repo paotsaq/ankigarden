@@ -24,8 +24,8 @@ from const import (
         AUDIOS_SOURCE_DIR,
         )
 from apis.anki_database import (
-        create_connection_to_database,
-        close_connection_to_database,
+        # create_connection_to_database,
+        # close_connection_to_database,
         create_anki_dict_from_flashcard,
         send_request_to_anki,
         move_audio_files_to_anki_mediadir

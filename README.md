@@ -6,21 +6,23 @@ because language learning can be done *quicker* 🏃
 
 Hello! I have been spending much time learning languages in the past few months and this is a tool that strives to make that process a bit easier. There's some general information about the project [here](https://sbsbsb.sbs/ankigarden).
 
-This relies on [DeepL](https://deepl.com) for text translations and [SoundOfText](https://soundoftext.com) for pronunciation audio generation (and a special thanks goes to [Flora Moon](https://soundoftext.com/#about) for the latter tool 💞); you need an account for the first; for SoundOfText, just try to be mindful of data use — and in the future I'll try to think of a more robust solution, too.
-
-![the MVP for the Ankigarden looks like this](https://sbsbsb.sbs/images/ankigarden_final_public_version.png)
-
-## And what does it do?
+My language learning studies usually imply long dialogues with online dictionaries/translation tools, and lots of manual input. This tool aims to automate most of that, creating Anki flashcards in a quicker fashion.
 
 For a better understanding of what I was trying to solve, it might be useful to check the [motivation](https://sbsbsb.sbs/old-anki-procedure) for the project. At the moment, it is a good tool to process some phrases/vocabulary, and it handles bidireccional input (so you can query in Danish and get English, and the other way around). 
 
 (it also supports other language combinations, but I haven't put much effort (yet?) into making that more accessible, nor is it thoroughly tested)
 
+![the MVP for the Ankigarden looks like this](https://sbsbsb.sbs/images/ankigarden_final_public_version.png)
+
+## Cool! And how?
+
+In fact, it is not doing anything too fancy: it's mostly API calls and some mild logic to create flashcards. 
+
+This relies on [DeepL](https://deepl.com) for text translations and [SoundOfText](https://soundoftext.com) for pronunciation audio generation (and a special thanks goes to [Flora Moon](https://soundoftext.com/#about) for the latter tool 💞); you need an account for the first; for SoundOfText, just try to be mindful of data use — and in the future I'll try to think of a more robust solution, too.
 
 ## Is it finished?
 
 Not by any chance! But a few friends have asked to use it — and I could really use the feedback. So this is still a private repository, and lots of work shall still be done — you can the roadmap yourself at [the log](https://sbsbsb.sbs/ankigarden-log) — but for the time-being, I don't think there will be any major works on this (I need to actually __use__ the tool instead of just tinkering with it!).
-
 
 ## And how can I get this thing going?
 
@@ -57,3 +59,17 @@ USE_CONFIGS = {
 Then...err...fool around! It __should__ work, but you know how to reach me for any questions or problems arising (and I'll try to fix them, too!).
 
 Oh, and I almost forgot: for now, it runs as `python main.py`
+
+## Anything else I should know?
+
+Yes! The usual workflow is to
+
+a) write a prompt on `target` or `source`; press `Enter`.
+
+(optionally, fill the `context` prompt to reduce ambiguity or try to *massage* the output into specific words or terms)
+
+b) the `audio` pronunciation field should have been automatically filled; press `Enter` to retrieve (download) the pronunciation file.
+
+(also, if `noun` is in `tags`, it will gemerate twice the pronunciation prompt; this is useful for Danish in particular, since, for example, *bog* is *book*, but *the book* is *bogen*; words are suffixed by their gender article — either *en* or *et*; this will be further worked upon, but the idea is to also get the gender of the word on the flashcard).
+
+c) when the audio file is retrieved, the flashcard is ready to be saved.
