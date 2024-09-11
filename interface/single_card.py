@@ -35,8 +35,16 @@ from time import sleep
 from playsound import playsound
 from os.path import exists
 
+# BUTTON LABELS
+
 REPRODUCE = "(r)eproduce"
 RETRIEVE = "(r)etrieve"
+FAIL_SAVE_NO_AUDIO = "no audio retrieved!"
+FAIL_SAVE_NO_ANKI = "could not connect to Anki!"
+FAIL_MISSING_FIELDS = "missing fields!"
+SAVE = "save (f)lashcard"
+SUCCESS_SAVE = "flashcard saved!"
+
 
 class EscapableInput(Input):
     """just a class that communicates on esc key press"""
@@ -70,7 +78,7 @@ class FlashcardColumn(Widget):
         ("s", "focus_elem('source')", "(s)ource"),
         ("g", "focus_elem('tags')", "ta(g)s"),
         ("a", "focus_elem('audio')", "(a)udio"),
-        ("r", "focus_elem('play')", "(r)etrieve / (r)eproduce audio "),
+        # ("r", "focus_elem('play')", f"{RETRIEVE} / {REPRODUCE} audio "),
         ("f", "focus_elem('save')", "save (f)c"),
     ]
 
@@ -110,7 +118,7 @@ class FlashcardColumn(Widget):
                               classes="flashcardAudioInput", id="audio_input"),
                         Button(label="📡 no prompt!", disabled=True,
                                classes="flashcardLineButton", id="audio_button")),
-                    Button(label="create flashcard",
+                    Button(label=SAVE,
                            classes="flashcardButton", id="flashcard_button")),
                 classes="flashcardColumn")
 
@@ -176,6 +184,9 @@ class SingleFlashcardPanel(Widget):
         self.fc = self.get_new_flashcard()
         self.focus()
 
+    def get_button_label(self, button_id: str):
+        return self.query_one(button_id).label._text[0]
+
     def on_flashcard_column_submitted(self, message):
         """one of the fields was submitted;
         a series of actions are taking place"""
@@ -216,16 +227,14 @@ class SingleFlashcardPanel(Widget):
                 self.fc.audio_filename = self.query_one("#audio_input").value
                 # updates audio button
                 self.query_one("#audio_button").disabled = False
-                self.query_one("#audio_button").label = "(r)etrieve"
+                self.query_one("#audio_button").label = RETRIEVE
 
         # handles the audio files
         elif ((message.action == "audio_button" and
              self.query_one("#audio_input").value != "")):
             # audio file is already downloaded, and it exists
             # NOTE the label query certifies the audio wasn't manually changed via audio_input
-            logger.debug("AUDIO BUTTON WAS ACTIVATED")
-            # TODO the query below could be refactored
-            if (self.query_one("#audio_button").label._text[0] == REPRODUCE and
+            if (self.get_button_label("#audio_button") == REPRODUCE and
                 self.fc.audio_filename != None and
                 exists(AUDIOS_SOURCE_DIR + self.fc.audio_filename)):
                     logger.debug(f"will play sound for {self.fc.audio_filename}")
@@ -236,13 +245,20 @@ class SingleFlashcardPanel(Widget):
                 self.fc.get_audio_file_path()
                 self.fc.get_audio_file()
                 self.query_one("#audio_button").label = REPRODUCE
+                if self.get_button_label("#flashcard_button") == FAIL_SAVE_NO_AUDIO:
+                    self.query_one("#flashcard_button").label = SAVE
+                    self.query_one("#flashcard_button").variant = "default"
+                    self.query_one("#audio_button").variant = "default"
         # input was manually changed; this will also update the button label
         elif ((message.action == "audio_input" and 
                self.fc.target_audio_query != self.query_one("#audio_input").value)):
             self.fc.target_audio_query = self.query_one("#audio_input").value
             # NOTE it would maybe also be nice to erase the previous audio if generated,
             # so as not to clutter Anki's collection?
-            self.query_one("#audio_button").label = "(r)etrieve"
+            self.query_one("#audio_button").label = RETRIEVE
+            if self.get_button_label("#flashcard_button") == FAIL_SAVE_NO_AUDIO:
+                self.query_one("#flashcard_button").label = SAVE
+                self.query_one("#flashcard_button").variant = "default"
 
         # saves flashcard to database;
         # NOTE we might consider the possibility of saving incomplete flashcards
@@ -251,20 +267,29 @@ class SingleFlashcardPanel(Widget):
         elif message.action == "flashcard_button":
             if (self.fc.target == "" or self.fc.source == ""):
                 self.query_one("#flashcard_button").variant = "warning"
-                self.query_one("#flashcard_button").label = "missing fields!"
+                self.query_one("#flashcard_button").label = FAIL_MISSING_FIELDS
+            elif (self.get_button_label("#audio_button") == RETRIEVE):
+                self.query_one("#flashcard_button").variant = "warning"
+                self.query_one("#audio_button").variant = "warning"
+                self.query_one("#flashcard_button").label = FAIL_SAVE_NO_AUDIO
             else:
                 self.fc.source = self.query_one("#source_input").value
                 self.fc.target = self.query_one("#target_input").value
                 self.fc.tags = self.query_one("#tags_input").value
                 fc_dict = create_anki_dict_from_flashcard(self.fc)
-                params={"notes": [fc_dict]}
+                params = {"notes": [fc_dict]}
                 test_can_add = send_request_to_anki("canAddNotesWithErrorDetail",
                                                     params)
-                if test_can_add[0]:
+                if test_can_add:
                     send_request_to_anki("addNotes", params)
                     move_audio_files_to_anki_mediadir([self.fc])
+                    self.query_one("#flashcard_button").variant = "success"
+                    self.query_one("#flashcard_button").label = SUCCESS_SAVE
+                    self.query_one("#flashcard_button").disabled = True
                 else:
                     logger.error(test_can_add)
+                    self.query_one("#flashcard_button").variant = "warning"
+                    self.query_one("#flashcard_button").label = FAIL_SAVE_NO_ANKI
         self.query_one(FlashcardColumn).focus()
 
 
