@@ -150,6 +150,22 @@ import shutil
     # session.commit()
     # close_connection_to_database(session, engine)
 
+### LUTE FILE IMPORT
+
+TERMS_KEYS = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
+
+def parse_lute_term_output(line: str):
+    return dict(zip(TERMS_KEYS, line.split(",")))
+
+def create_flashcard_from_lute_line(lute_line_dict: dict):
+    return Flashcard(
+        target = lute_line_dict["term"],
+        target_lang = lute_line_dict["language"],
+        source = lute_line_dict["translation"],
+        source_lang = "English",
+        tags = lute_line_dict["tags"]
+        )
+
 
 ### ANKI CONNECT
 
