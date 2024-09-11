@@ -12,7 +12,8 @@ SUBSECTIONS = [
         'Adjective'
         ]
 
-def fetch_and_parse_wiktionary_toc(page_title):
+def fetch_wiktionary_page(page_title: str):
+    target_lang = "Danish"
     base_url = "https://en.wiktionary.org/w/api.php"
     params = {
         "action": "parse",
@@ -25,43 +26,71 @@ def fetch_and_parse_wiktionary_toc(page_title):
     response = requests.get(base_url, params=params)
     
     if response.status_code == 200:
-        data = response.json()
-        content_html = data["parse"]["text"]
-        
-        # Parse the HTML content with Beautiful Soup
-        soup = BeautifulSoup(content_html, 'lxml')
-        
-        # Find the Table of Contents
-        toc = soup.find('div', id='toc')
-        
-        if toc:
-            print("Table of Contents found.")
-            
-            # Look for the Danish section in the TOC;
-            danish_section = toc.find('span',
-                                      string='Danish').parent.parent if toc.find('span', string='Danish') else None
-            
-            if danish_section:
-                print("Danish section exists.")
-                target_lang_wiki_sections = soup.find('h2', id="Danish")
-                # NOTE target section exists and every sibling between this element
-                # and next h2 will belong to target
-                if target_lang_wiki_sections:
-                    subsections = target_lang_wiki_sections.parent.find_next_siblings("div", "mw-heading mw-heading3")
-                    relevant = list(filter(lambda sub: next(sub.children).string in SUBSECTIONS,
-                                      subsections))
-                    noun_info = relevant[0].next_sibling.next_sibling
-                    gender_divs = noun_info.find("span", "gender")
-                    print(dir(gender_divs))
-                    print(list(gender_divs.descendants)[1])
-
-            else:
-                print("Danish section not found in TOC.")
-        else:
-            print("Table of Contents not found.")
+        soup = BeautifulSoup(response.json()["parse"]["text"], 'lxml')
+        return soup
     else:
         print(f"Failed to fetch page content. Status code: {response.status_code}")
+        return None
+
+
+    # Find the Table of Contents
+
+def retrieve_toc_from_soup(soup):
+    toc = soup.find('div', id='toc')
+    if toc:
+        print("Table of Contents found.")
+        return toc
+    else:
+        print("Table of Contents not found.")
+        return False
+        
+def find_target_lang_section_in_toc(toc, target_lang):
+    tl_section = (toc.find('span',
+                           string=target_lang).parent.parent
+                  if toc.find('span', string=target_lang) else None)
+        
+    if tl_section:
+        print(f"{target_lang} section exists.")
+        return tl_section
+    else:
+        print(f"{target_lang} section not found in TOC. Definition might be missing?")
+        return False
+
+def retrieve_target_lang_subsections(target_lang: str, soup, relevant=True):
+    target_lang_wiki_sections = soup.find('h2', id=target_lang)
+    # NOTE target section exists and every sibling between this element
+    # and next h2 will belong to target
+    if target_lang_wiki_sections:
+        subsections = target_lang_wiki_sections.parent.find_next_siblings("div", "mw-heading mw-heading3")
+        if relevant: 
+            relevant = list(filter(lambda sub: next(sub.children).string in SUBSECTIONS,
+                              subsections))
+            return relevant
+        else:
+            return subsections
+
+def get_noun_gender_from_subsection(subsections):
+    # NOTE this is hardcoded! a any/filter combo would be safer
+    noun_info = list(subsections)[0].next_sibling.next_sibling
+    gender_divs = noun_info.find("span", "gender")
+    return list(gender_divs.descendants)[1]
+
+
+def get_danish_noun_gender(word: str):
+    target_lang = "Danish"
+    soup = fetch_wiktionary_page(word)
+    toc = retrieve_toc_from_soup(soup)
+    target_lang_exists = find_target_lang_section_in_toc(toc, target_lang)
+    if target_lang_exists:
+        subsections = retrieve_target_lang_subsections(target_lang, soup, True)
+        # TODO parse subsections to check category of word
+        # NOTE what if a word is a noun + something else?
+        gender = get_noun_gender_from_subsection(subsections)
+        return gender
+
+
+word = "franskbrød"
+print(get_danish_noun_gender(word))
+print(get_danish_noun_gender("land"))
 
 # Example usage
-fetch_and_parse_wiktionary_toc("franskbrød")
-
