@@ -101,3 +101,33 @@ class Flashcard:
         if not success:
             logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
+
+
+class LuteTerm:
+
+    def __init__(
+            # TODO create db schema from this data
+            EXPECTED = {
+                'term': 'høj',
+                'parent': '',
+                'translation': 'high / tall',
+                'language': 'Danish',
+                'tags': 'vocabulary',
+                'added': '2024-08-21 23:00:13',
+                'status': '1',
+                'link_status': '',
+                'pronunciation': ''
+                }
+    ):
+        self.source = source
+        self.source_lang = source_lang
+        self.target = target
+        self.target_lang = target_lang
+        self.context = context
+        self.target_audio_query = target_audio_query
+        self.audio_filename = audio_filename
+        self.tags = tags
+        self.content_type = content_type
+        self.deck = deck
+        self.notetype = notetype
+        self.added = added
