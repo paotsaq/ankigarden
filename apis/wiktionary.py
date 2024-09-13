@@ -9,6 +9,7 @@ from bs4.element import (
         Comment
         )
 from itertools import takewhile
+import re
 
 SUBSECTIONS = [
         'Noun',
@@ -96,24 +97,78 @@ def get_noun_gender_from_subsection(subsections: list[Tag]) -> str:
     return list(gender_divs.descendants)[1]
 
 
-def get_word_categories_from_subsections(subsections: list[Tag], categories: dict) -> list[str]:
+def strip_html_from_content(html_string: Tag):
+    soup = BeautifulSoup(html_string, 'html.parser')
+    return soup.get_text().strip()
+
+
+def get_verb_conjugation_from_subsection(subsection: Tag):
+    pattern = r'(imperative|infinitive|present tense|past tense|perfect tense)\s+(.*?)\s*(?:,|$)'
+    
+    raw_text = strip_html_from_content(subsection)
+    paren_content = raw_text[raw_text.find('(') + 1:-1]
+
+    matches = re.findall(pattern, paren_content, flags=re.IGNORECASE)
+    
+    return {
+        conj_type.strip().lower(): conj_value.strip()
+        for conj_type, conj_value in matches
+    }
+
+
+def get_word_categories_from_subsections(
+        subsections: list[Tag],
+        categories: list[dict],
+        current_entry: dict
+        ) -> list[dict]:
     # NOTE counting etymology entries is not enough, but it is necessary
     # https://en.wiktionary.org/wiki/p%C3%A5#Danish
     if subsections == []:
         return categories
     head = subsections[0]
-    category = head.tag
-    if category.tag.has_attr["class"] and "mw-heading" in category.tag["class"]:
-        if "Etymology" in category.next_child.id:
-            # checks whether there are multiple entries or not
-            if "Etymology" == category.next_child.id:
-                return {"etymology: }get_word_categories_from_subsections
+    print(f"categories: {categories}; current_entry: {current_entry}")
+    if head.has_attr("class") and "mw-heading" in head["class"]:
+        # NOTE this is how to hackily retrieve the identifier of which subsection to handle
+        # children_gen = head.children
+        subsection = next(head.children)["id"].split("_")[0]
+        if subsection == "Etymology":
+            assert isinstance(subsections[1], Tag)
+            etymology_paragraph = subsections[1].get_text()
+            new_entry = {"etymology": strip_html_from_content(etymology_paragraph)}
+            return get_word_categories_from_subsections(subsections[2:], categories, new_entry)
+        elif subsection in SUBSECTIONS:
+            if subsection == "Noun":
+                gender_info = strip_html_from_content(subsections[1].find("span", "gender").get_text())
+                definition = strip_html_from_content(subsections[2].get_text()).split("\n")
+                new_info = {
+                        "type": subsection.lower(),
+                        "gender": gender_info,
+                        "definition": definition
+                        }
+            elif subsection == "Verb":
+                conjugation = get_verb_conjugation_from_subsection(subsections[1].get_text())
+                definition = strip_html_from_content(subsections[2].get_text()).split("\n")
+                new_info = {
+                        "type": subsection.lower(),
+                        "conjugation": conjugation,
+                        "definition": definition
+                        }
+
+            # NOTE must check whether `current_entry` already has an etymology;
+            # if it does — the usual case — just keep adding information to the `dict` object
+            # otherwise, retrieve it from the last entry
+            if "etymology" not in current_entry.keys():
+                new_info["etymology"] = categories[-1]["etymology"]
+            return get_word_categories_from_subsections(subsections[3:], categories + [current_entry | new_info], {})
+        else:
+            return get_word_categories_from_subsections(subsections[2:], categories, current_entry)
+                
+
+
 
 
 def get_noun_definition_from_subsection(subsections: list[Tag]) -> str:
     # NOTE this is hardcoded! a any/filter combo would be safer
-    print(subsections)
-    print(type(subsections[0]))
     definition_tag = list(subsections)[0].next_sibling.next_sibling.next_sibling.next_sibling
     definition_elems = definition_tag.find_all("li")
     # TODO map this across all definitions

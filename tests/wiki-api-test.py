@@ -230,6 +230,23 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         target_section = find_target_lang_section_in_toc(toc, language)
         subs = retrieve_target_lang_subsections(language, soup)
 
+    def test_can_parse_html_from_text_content(self):
+        SOURCE = """<p>Compound of <i class="Latn mention" lang="da"><a href="/wiki/fransk#Danish" title="fransk">fransk</a></i> +‎ <i class="Latn mention" lang="da"><a href="/wiki/br%C3%B8d#Danish" title="brød">brød</a></i>, after the model of <span class="etyl"><a class="extiw" href="https://en.wikipedia.org/wiki/German_language" title="w:German language">German</a></span> <i class="Latn mention" lang="de"><a class="new" href="/w/index.php?title=Franzbrot&amp;action=edit&amp;redlink=1" title="Franzbrot (page does not exist)">Franzbrot</a></i>.
+</p>"""
+        EXPECTED = "Compound of fransk +\u200e brød, after the model of German Franzbrot."
+        self.assertEqual(EXPECTED, strip_html_from_content(SOURCE))
+
+
+    def test_can_retrieve_danish_verb_conjugation(self):
+        SOURCE = """<p><span class="headword-line"><strong class="Latn headword" lang="da">tale</strong> (<i>imperative</i> <b class="Latn form-of lang-da imp-form-of" lang="da"><a href="/wiki/tal#Danish" title="tal">tal</a></b>, <i>infinitive</i> <b class="Latn" lang="da">at <strong class="selflink">tale</strong></b>, <i>present tense</i> <b class="Latn form-of lang-da pres-form-of" lang="da"><a href="/wiki/taler#Danish" title="taler">taler</a></b>, <i>past tense</i> <b class="Latn form-of lang-da past-form-of" lang="da"><a href="/wiki/talte#Danish" title="talte">talte</a></b>, <i>perfect tense</i> <b class="Latn form-of lang-da past|part-form-of" lang="da">har <a href="/wiki/talt#Danish" title="talt">talt</a></b>)</span>"""
+        EXPECTED = {
+                "imperative": "tal",
+                "infinitive": "at tale",
+                "present tense": "taler",
+                "past tense": "talte",
+                "perfect tense": "har talt"
+                }
+        self.assertEqual(get_verb_conjugation_from_subsection(SOURCE), EXPECTED)
 
     def test_can_retrieve_target_lang_noun_single_definition(self):
         word = "franskbrød"
@@ -238,8 +255,76 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         toc = retrieve_toc_from_soup(soup)
         target_section = find_target_lang_section_in_toc(toc, language)
         subs = retrieve_target_lang_subsections(language, soup)
-        definition = get_noun_definition_from_subsection(subs)
-        self.assertEqual(definition, "wheat bread")
+        res_dict = get_word_categories_from_subsections(subs, [], {})
+        self.assertEqual(res_dict, [{"etymology": "Compound of fransk +\u200e brød, after the model of German Franzbrot.",
+                                    "type": "noun",
+                                    "gender": "n",
+                                    "definition": ["wheat bread"]
+                         }])
+
+    def test_can_retrieve_target_lang_noun_multiple_definition(self):
+        word = "trivsel"
+        language = "Danish"
+        soup = fetch_wiktionary_page(word)
+        toc = retrieve_toc_from_soup(soup)
+        target_section = find_target_lang_section_in_toc(toc, language)
+        subs = retrieve_target_lang_subsections(language, soup)
+        res_dict = get_word_categories_from_subsections(subs, [], {})
+        self.assertEqual(res_dict, [{"etymology": "Verbal noun to trives (“to thrive”).",
+                                    "type": "noun",
+                                    "gender": "c",
+                                    "definition": ["well-being", "growth, prosperity"]
+                         }])
+
+    def test_can_retrieve_target_lang_multiple_word_role(self):
+        word = "tale"
+        language = "Danish"
+        soup = fetch_wiktionary_page(word)
+        toc = retrieve_toc_from_soup(soup)
+        target_section = find_target_lang_section_in_toc(toc, language)
+        subs = retrieve_target_lang_subsections(language, soup)
+        res_dict = get_word_categories_from_subsections(subs, [], {})
+        self.assertEqual(res_dict, [{"etymology": "From Old Norse tala.",
+                                     "type": "noun",
+                                     "gender": "c",
+                                     "definition": ["speech, talk, address, discourse"]},
+                                    {"etymology": "From Old Norse tala.",
+                                     "type": "verb",
+                                     "conjugation": {
+                                         "imperative": "tal",
+                                         "infinitive": "at tale",
+                                         "present tense": "taler",
+                                         "past tense": "talte",
+                                         "perfect tense": "har talt"
+                                         },
+                                     "definition": ['to make a speech', 'to speak, talk']
+                         }])
+
+
+    def test_can_retrieve_target_lang_multiple_etymologies(self):
+        word = "bo"
+        language = "Danish"
+        soup = fetch_wiktionary_page(word)
+        toc = retrieve_toc_from_soup(soup)
+        target_section = find_target_lang_section_in_toc(toc, language)
+        subs = retrieve_target_lang_subsections(language, soup)
+        res_dict = get_word_categories_from_subsections(subs, [], {})
+        self.assertEqual(res_dict, [{'etymology': 'From Old Norse bú, from Old Norse búa (“to reside”).',
+                                     'type': 'noun',
+                                     'gender': 'n',
+                                     'definition': [
+                                         'estate (the property of a deceased person)',
+                                         'den, nest',
+                                         'abode, home']},
+                                    {'etymology': 'From Old Norse búa (“to reside”), from Proto-Germanic *būaną, cognate with Norwegian bo, bu, Swedish bo, German bauen, Dutch bouwen, Gothic 𐌱𐌰𐌿𐌰𐌽 (bauan).',
+                                     'type': 'verb',
+                                     'conjugation': {
+                                         'present tense': 'bor',
+                                         'past tense': 'boede'
+                                         },
+                                     'definition': [
+                                         'to live, reside, dwell']
+                                     }])
 
 
     # NOTE still not sure whether it is necessary to check the declension table
