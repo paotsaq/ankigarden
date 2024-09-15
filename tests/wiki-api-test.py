@@ -7,6 +7,14 @@ from bs4.element import (
         Tag
         )
 
+SOURCE_BO_DEFINITION = """<ol><li>to <a href="/wiki/live" title="live">live</a>, <a href="/wiki/reside" title="reside">reside</a>, <a href="/wiki/dwell" title="dwell">dwell</a>
+<dl><dd><div class="h-usage-example"><i class="Latn mention e-example" lang="da">Hun <b>bor</b> i London.</i><dl><dd><span class="e-translation">She <b>lives</b> in London.</span></dd></dl></div></dd></dl></li></ol>"""
+
+
+SOURCE_TALE_CONJUGATION = """<p><span class="headword-line"><strong class="Latn headword" lang="da">tale</strong> (<i>imperative</i> <b class="Latn form-of lang-da imp-form-of" lang="da"><a href="/wiki/tal#Danish" title="tal">tal</a></b>, <i>infinitive</i> <b class="Latn" lang="da">at <strong class="selflink">tale</strong></b>, <i>present tense</i> <b class="Latn form-of lang-da pres-form-of" lang="da"><a href="/wiki/taler#Danish" title="taler">taler</a></b>, <i>past tense</i> <b class="Latn form-of lang-da past-form-of" lang="da"><a href="/wiki/talte#Danish" title="talte">talte</a></b>, <i>perfect tense</i> <b class="Latn form-of lang-da past|part-form-of" lang="da">har <a href="/wiki/talt#Danish" title="talt">talt</a></b>)</span>"""
+
+
+SOURCE_FRANKS_DEF = """<p>Compound of <i class="Latn mention" lang="da"><a href="/wiki/fransk#Danish" title="fransk">fransk</a></i> +‎ <i class="Latn mention" lang="da"><a href="/wiki/br%C3%B8d#Danish" title="brød">brød</a></i>, after the model of <span class="etyl"><a class="extiw" href="https://en.wikipedia.org/wiki/German_language" title="w:German language">German</a></span> <i class="Latn mention" lang="de"><a class="new" href="/w/index.php?title=Franzbrot&amp;action=edit&amp;redlink=1" title="Franzbrot (page does not exist)">Franzbrot</a></i>.</p>"""
 
 EXPECTED_TARGET_SECTION = """<li class="toclevel-1 tocsection-1"><a href="#Danish"><span class="tocnumber">1</span> <span class="toctext">Danish</span></a>
 <ul>
@@ -231,14 +239,14 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         subs = retrieve_target_lang_subsections(language, soup)
 
     def test_can_parse_html_from_text_content(self):
-        SOURCE = """<p>Compound of <i class="Latn mention" lang="da"><a href="/wiki/fransk#Danish" title="fransk">fransk</a></i> +‎ <i class="Latn mention" lang="da"><a href="/wiki/br%C3%B8d#Danish" title="brød">brød</a></i>, after the model of <span class="etyl"><a class="extiw" href="https://en.wikipedia.org/wiki/German_language" title="w:German language">German</a></span> <i class="Latn mention" lang="de"><a class="new" href="/w/index.php?title=Franzbrot&amp;action=edit&amp;redlink=1" title="Franzbrot (page does not exist)">Franzbrot</a></i>.
-</p>"""
         EXPECTED = "Compound of fransk +\u200e brød, after the model of German Franzbrot."
-        self.assertEqual(EXPECTED, strip_html_from_content(SOURCE))
+        self.assertEqual(EXPECTED, retrieve_content_from_tag(BeautifulSoup(SOURCE_FRANKS_DEF, features="lxml")))
 
+    def test_can_remove_usage_example_from_definition(self):
+        EXPECTED = "to live, reside, dwell"
+        self.assertEqual(EXPECTED, retrieve_definition_from_tag(BeautifulSoup(SOURCE_BO_DEFINITION,features="lxml")))
 
     def test_can_retrieve_danish_verb_conjugation(self):
-        SOURCE = """<p><span class="headword-line"><strong class="Latn headword" lang="da">tale</strong> (<i>imperative</i> <b class="Latn form-of lang-da imp-form-of" lang="da"><a href="/wiki/tal#Danish" title="tal">tal</a></b>, <i>infinitive</i> <b class="Latn" lang="da">at <strong class="selflink">tale</strong></b>, <i>present tense</i> <b class="Latn form-of lang-da pres-form-of" lang="da"><a href="/wiki/taler#Danish" title="taler">taler</a></b>, <i>past tense</i> <b class="Latn form-of lang-da past-form-of" lang="da"><a href="/wiki/talte#Danish" title="talte">talte</a></b>, <i>perfect tense</i> <b class="Latn form-of lang-da past|part-form-of" lang="da">har <a href="/wiki/talt#Danish" title="talt">talt</a></b>)</span>"""
         EXPECTED = {
                 "imperative": "tal",
                 "infinitive": "at tale",
@@ -246,7 +254,7 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                 "past tense": "talte",
                 "perfect tense": "har talt"
                 }
-        self.assertEqual(get_verb_conjugation_from_subsection(SOURCE), EXPECTED)
+        self.assertEqual(get_verb_conjugation_from_subsection(BeautifulSoup(SOURCE_TALE_CONJUGATION, features="lxml")), EXPECTED)
 
     def test_can_retrieve_target_lang_noun_single_definition(self):
         word = "franskbrød"
@@ -299,7 +307,6 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                          },
                                      "definition": ['to make a speech', 'to speak, talk']
                          }])
-
 
     def test_can_retrieve_target_lang_multiple_etymologies(self):
         word = "bo"

@@ -72,6 +72,7 @@ def find_target_lang_section_in_toc(toc, target_lang) -> Tag | bool:
         print(f"{target_lang} section not found in TOC. Definition might be missing?")
         return False
 
+
 def retrieve_target_lang_subsections(target_lang: str, soup, relevant=True) -> list[Tag | NavigableString] | bool:
     target_lang_wiki_sections = soup.find('h2', id=target_lang)
     # note target section exists and every sibling between this element
@@ -97,15 +98,24 @@ def get_noun_gender_from_subsection(subsections: list[Tag]) -> str:
     return list(gender_divs.descendants)[1]
 
 
-def strip_html_from_content(html_string: Tag):
-    soup = BeautifulSoup(html_string, 'html.parser')
+def retrieve_content_from_tag(html_tag: Tag):
+    soup = BeautifulSoup(html_tag.get_text(), 'html.parser')
     return soup.get_text().strip()
 
+
+def retrieve_definition_from_tag(html_tag: Tag):
+    # NOTE  Wiktionary formats its definitions using <dl> tags.
+    # thus, they should be supressed
+    # NOTE object is directly modified!
+    if html_tag.dl is not None:
+        html_tag.dl.decompose()
+    soup = BeautifulSoup(html_tag.get_text(), 'html.parser')
+    return soup.get_text().strip()
 
 def get_verb_conjugation_from_subsection(subsection: Tag):
     pattern = r'(imperative|infinitive|present tense|past tense|perfect tense)\s+(.*?)\s*(?:,|$)'
     
-    raw_text = strip_html_from_content(subsection)
+    raw_text = retrieve_content_from_tag(subsection)
     paren_content = raw_text[raw_text.find('(') + 1:-1]
 
     matches = re.findall(pattern, paren_content, flags=re.IGNORECASE)
@@ -126,28 +136,28 @@ def get_word_categories_from_subsections(
     if subsections == []:
         return categories
     head = subsections[0]
-    print(f"categories: {categories}; current_entry: {current_entry}")
+    # print(f"categories: {categories}; current_entry: {current_entry}")
     if head.has_attr("class") and "mw-heading" in head["class"]:
         # NOTE this is how to hackily retrieve the identifier of which subsection to handle
         # children_gen = head.children
         subsection = next(head.children)["id"].split("_")[0]
         if subsection == "Etymology":
             assert isinstance(subsections[1], Tag)
-            etymology_paragraph = subsections[1].get_text()
-            new_entry = {"etymology": strip_html_from_content(etymology_paragraph)}
+            etymology_paragraph = subsections[1]
+            new_entry = {"etymology": retrieve_content_from_tag(etymology_paragraph)}
             return get_word_categories_from_subsections(subsections[2:], categories, new_entry)
         elif subsection in SUBSECTIONS:
             if subsection == "Noun":
-                gender_info = strip_html_from_content(subsections[1].find("span", "gender").get_text())
-                definition = strip_html_from_content(subsections[2].get_text()).split("\n")
+                gender_info = retrieve_content_from_tag(subsections[1].find("span", "gender"))
+                definition = retrieve_definition_from_tag(subsections[2]).split("\n")
                 new_info = {
                         "type": subsection.lower(),
                         "gender": gender_info,
                         "definition": definition
                         }
             elif subsection == "Verb":
-                conjugation = get_verb_conjugation_from_subsection(subsections[1].get_text())
-                definition = strip_html_from_content(subsections[2].get_text()).split("\n")
+                conjugation = get_verb_conjugation_from_subsection(subsections[1])
+                definition = retrieve_definition_from_tag(subsections[2]).split("\n")
                 new_info = {
                         "type": subsection.lower(),
                         "conjugation": conjugation,
@@ -162,32 +172,3 @@ def get_word_categories_from_subsections(
             return get_word_categories_from_subsections(subsections[3:], categories + [current_entry | new_info], {})
         else:
             return get_word_categories_from_subsections(subsections[2:], categories, current_entry)
-                
-
-
-
-
-def get_noun_definition_from_subsection(subsections: list[Tag]) -> str:
-    # NOTE this is hardcoded! a any/filter combo would be safer
-    definition_tag = list(subsections)[0].next_sibling.next_sibling.next_sibling.next_sibling
-    definition_elems = definition_tag.find_all("li")
-    # TODO map this across all definitions
-    inside_elems = definition_elems[0].children
-    definition = "".join(map(lambda elem: (elem.get_text() if isinstance(elem, Tag)
-                                            else elem),
-                              inside_elems))
-    return definition
-
-    # return list(gender_divs.descendants)[1]
-
-def get_danish_noun_gender(word: str):
-    target_lang = "Danish"
-    soup = fetch_wiktionary_page(word)
-    toc = retrieve_toc_from_soup(soup)
-    target_lang_exists = find_target_lang_section_in_toc(toc, target_lang)
-    if target_lang_exists:
-        subsections = retrieve_target_lang_subsections(target_lang, soup, True)
-        # TODO parse subsections to check category of word
-        # NOTE what if a word is a noun + something else?
-        gender = get_noun_gender_from_subsection(subsections)
-        return gender
