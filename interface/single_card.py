@@ -16,6 +16,7 @@ from textual.widgets import (
         )
 from textual.reactive import reactive
 from textual.message import Message
+from textual.binding import Binding
 from db.objects import Flashcard
 from const import (
         DATABASE_FILE_PATH,
@@ -78,8 +79,8 @@ class FlashcardColumn(Widget):
         ("s", "focus_elem('source')", "(s)ource"),
         ("g", "focus_elem('tags')", "ta(g)s"),
         ("a", "focus_elem('audio')", "(a)udio"),
-        # ("r", "focus_elem('play')", f"{RETRIEVE} / {REPRODUCE} audio "),
-        ("f", "focus_elem('save')", "save (f)c"),
+        Binding("r", "focus_elem('play')", f"{RETRIEVE} / {REPRODUCE} audio ", show=False),
+        Binding("f", "focus_elem('save')", "save (f)c", show=False),
     ]
 
     class Submitted(Message):
@@ -228,6 +229,11 @@ class SingleFlashcardPanel(Widget):
                 # updates audio button
                 self.query_one("#audio_button").disabled = False
                 self.query_one("#audio_button").label = RETRIEVE
+                if self.get_button_label("#flashcard_button") == SUCCESS_SAVE:
+                    self.query_one("#flashcard_button").variant = "default"
+                    self.query_one("#flashcard_button").label = SAVE
+                    self.query_one("#flashcard_button").disabled = False
+
 
         # handles the audio files
         elif ((message.action == "audio_button" and
