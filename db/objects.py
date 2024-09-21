@@ -12,6 +12,9 @@ from logger import logger
 from const import (
         LANG_MAP,
         )
+from dataclasses import dataclass
+from datetime import datetime
+
 
 
 class Flashcard:
@@ -101,3 +104,37 @@ class Flashcard:
         if not success:
             logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
+
+@dataclass
+class LuteEntry:
+    term: str
+    parent: str
+    translation: str
+    language: str
+    tags: list[str]
+    added: datetime
+    status: int
+    link_status: str
+    pronunciation: str
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            term=data['term'],
+            parent=data['parent'],
+            translation=data['translation'],
+            language=data['language'],
+            tags=data['tags'].split(', '),
+            added=datetime.strptime(data['added'], '%Y-%m-%d %H:%M:%S'),
+            status=int(data['status']),
+            link_status=data['link_status'],
+            pronunciation=data['pronunciation']
+        )
+
+    def knowledge_level(self) -> str:
+        if self.status == 'W':
+            return "Known"
+        elif int(self.status) <= 5:
+            return "Learning"
+        else:
+            return "NoData"

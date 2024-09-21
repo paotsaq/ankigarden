@@ -1,5 +1,5 @@
 from logger import logger
-from db.objects import Flashcard
+from db.objects import Flashcard, LuteEntry
 from const import (
         LANG_MAP,
         DATABASE_FILE_PATH,
@@ -10,6 +10,8 @@ import json
 from const import ANKI_CONNECT_BASE_URL
 import requests
 import shutil
+import csv
+from io import StringIO
 
 
 # def create_connection_to_database(database_path: str) -> list[Session, Engine]:
@@ -154,18 +156,24 @@ import shutil
 
 TERMS_KEYS = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
 
-def parse_lute_term_output(line: str):
-    return dict(zip(TERMS_KEYS, line.split(",")))
+def parse_lute_term_output(line: str) -> dict:
+    reader = csv.reader(StringIO(line))
+    values = next(reader)
+    return dict(zip(TERMS_KEYS, values))
 
-def create_flashcard_from_lute_line(lute_line_dict: dict):
+
+def create_flashcard_from_lute_entry(lute_entry: LuteEntry) -> Flashcard:
+    source = lute_entry.translation
+    # removes the infinitives
+    if 'verb' in lute_entry.tags and source.startswith('to '):
+        source = source[3:]
     return Flashcard(
-        target = lute_line_dict["term"],
-        target_lang = lute_line_dict["language"],
-        source = lute_line_dict["translation"],
-        source_lang = "English",
-        tags = lute_line_dict["tags"]
-        )
-
+        target=lute_entry.term,
+        target_lang=lute_entry.language,
+        source_lang="English",
+        source=source,
+        tags=', '.join(lute_entry.tags)
+    )
 
 ### ANKI CONNECT
 
