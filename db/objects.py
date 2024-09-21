@@ -14,7 +14,8 @@ from const import (
         )
 from dataclasses import dataclass
 from datetime import datetime
-
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, DateTime
+from sqlalchemy.orm import declarative_base
 
 
 class Flashcard:
@@ -113,7 +114,7 @@ class LuteEntry:
     language: str
     tags: list[str]
     added: datetime
-    status: int
+    status: str
     link_status: str
     pronunciation: str
 
@@ -124,17 +125,52 @@ class LuteEntry:
             parent=data['parent'],
             translation=data['translation'],
             language=data['language'],
-            tags=data['tags'].split(', '),
+            tags=data['tags'],
             added=datetime.strptime(data['added'], '%Y-%m-%d %H:%M:%S'),
-            status=int(data['status']),
+            status='' if data['status'] is None else data['status'],
             link_status=data['link_status'],
             pronunciation=data['pronunciation']
         )
 
     def knowledge_level(self) -> str:
-        if self.status == 'W':
+        if self.status == '':
+            return "NoInfo"
+        elif self.status == 'W':
             return "Known"
-        elif int(self.status) <= 5:
+        elif self.status in "12345":
             return "Learning"
         else:
-            return "NoData"
+            raise Exception
+
+Base = declarative_base()
+
+class LuteTableEntry(Base):
+    __tablename__ = 'lute_terms'
+
+    id = Column(Integer, primary_key=True)
+    term = Column(String, nullable=False)
+    parent = Column(String)
+    translation = Column(String)
+    language = Column(String, nullable=False)
+    tags = Column(String)
+    added = Column(DateTime, nullable=False)
+    status = Column(String)
+    link_status = Column(String)
+    pronunciation = Column(String)
+    anki_note_id = Column(Integer)
+    last_synced = Column(DateTime)
+
+ # Factory method to create LuteTableEntry from LuteEntry
+    @classmethod
+    def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
+        return cls(
+            term=lute_entry.term,
+            parent=lute_entry.parent,
+            translation=lute_entry.translation,
+            language=lute_entry.language,
+            tags=lute_entry.tags, 
+            added=lute_entry.added,
+            status=str(lute_entry.status),  # Convert status to string
+            link_status=lute_entry.link_status,
+            pronunciation=lute_entry.pronunciation,
+        )
