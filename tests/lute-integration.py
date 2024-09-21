@@ -1,7 +1,7 @@
 import shutil
 import pytest
 from datetime import datetime
-from db.objects import Flashcard, LuteEntry, LuteTableEntry
+from db.objects import Flashcard, LuteEntry, LuteTableEntry, Base
 from apis.lute_terms_db import (
         create_connection_to_database,
         close_connection_to_database,
@@ -14,6 +14,12 @@ from apis.lute_terms_db import (
 import os
 import csv
 from io import StringIO 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
+
+
 
 @pytest.fixture
 def sample_lute_lines():
@@ -150,6 +156,7 @@ kone,,wife / woman,Danish,"common-noun, noun",2024-08-17 16:48:46,1,,"""
     assert lute_entries[2].language == 'Danish'
     assert lute_entries[3].tags == 'common-noun, noun'
 
+
 def test_create_lute_table_entry_from_lute_entry():
     # Mock LuteEntry
     lute_entry = LuteEntry(
@@ -207,3 +214,62 @@ def test_routine_to_add_lute_entries_to_db() -> None:
         # Close the connection and delete the copied database file
         close_connection_to_database(session, engine)
         os.remove(test_db)
+
+
+### TEST REDUNDANCY OF LUTE TERMS
+
+def create_sample_lute_entry():
+    return LuteEntry(
+        term="apple",
+        parent="",
+        translation="æble",
+        language="Danish",
+        tags="fruit, common",
+        added=datetime.now(),
+        status="1",
+        link_status="",
+        pronunciation=""
+    )
+
+@pytest.fixture(scope="function")
+def db_session():
+    # Create an in-memory SQLite database
+    engine = create_engine('sqlite:///:memory:')
+    
+    # Create all tables
+    Base.metadata.create_all(engine)
+    
+    # Set up Alembic and run migrations
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("script_location", "./alembic/")
+    with engine.begin() as connection:
+        alembic_cfg.attributes['connection'] = connection
+        command.upgrade(alembic_cfg, "head")
+    
+    # Create a new session
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    
+    yield session
+    
+    # Teardown
+    session.close()
+    Base.metadata.drop_all(engine)
+
+
+def test_update_lute_entry(db_session):
+    # Add initial entry
+    lute_entry = create_sample_lute_entry()
+    table_entry = LuteTableEntry.from_lute_entry(lute_entry)
+    db_session.add(table_entry)
+    db_session.commit()
+    
+    # Update entry
+    table_entry.term = "appel"  # Corrected spelling
+    table_entry.translation = "æble - corrected"
+    db_session.commit()
+    
+    # Query and assert
+    updated_entry = db_session.query(LuteTableEntry).first()
+    assert updated_entry.term == "appel"
+    assert updated_entry.translation == "æble - corrected"
