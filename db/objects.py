@@ -12,10 +12,11 @@ from logger import logger
 from const import (
         LANG_MAP,
         )
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base
+from typing import List, Dict
 
 
 class Flashcard:
@@ -160,7 +161,7 @@ class LuteTableEntry(Base):
     anki_note_id = Column(Integer)
     last_synced = Column(DateTime)
 
- # Factory method to create LuteTableEntry from LuteEntry
+    # Factory method to create LuteTableEntry from LuteEntry
     @classmethod
     def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
         return cls(
@@ -170,7 +171,100 @@ class LuteTableEntry(Base):
             language=lute_entry.language,
             tags=lute_entry.tags, 
             added=lute_entry.added,
-            status=str(lute_entry.status),  # Convert status to string
+            status=lute_entry.status,
             link_status=lute_entry.link_status,
             pronunciation=lute_entry.pronunciation,
         )
+
+
+@dataclass
+# NOTE this is still very hardcoded for Danish!
+class NormalizedLuteEntry(LuteEntry):
+    part_of_speech: str
+    must_get_part_of_speech: bool = False
+    must_get_gender: bool = False
+    must_get_parent: bool = False
+    normalization_log: List[Dict[str, str]] = field(default_factory=list)
+
+    def log_change(self, method: str, field: str, original: str, normalized: str):
+        self.normalization_log.append({
+            "method": method,
+            "field": field,
+            "original": original,
+            "normalized": normalized
+        })
+
+    def normalize_tags(self):
+        ALLOWED_TAGS = ['noun', 'verb', 'declension']
+        TAGS_TO_SUPPRESS = ['vocabulary']
+        original = self.tags
+        original_tags_list = original.split()
+
+        if original_tags_list == []:
+            self.must_get_part_of_speech = True
+            self.log_change("set must_get_part_of_speech", "must_get_part_of_speech",
+                            False, self.must_get_part_of_speech)
+            return
+
+        lower_cased_tags = list(map(lambda tag: tag.lower(),
+                                    self.tags.split()))
+
+        if lower_cased_tags != original_tags_list:
+            self.tags = " ".join(lower_cased_tags)
+            self.log_change("lowercased tags", "tags", original, self.tags)
+
+        filtered = list(filter(lambda tag: tag not in TAGS_TO_SUPPRESS,
+                       original_tags_list))
+
+        if filtered != original_tags_list:
+            self.log_change("removed tags", "tags", original, self.tags)
+            self.tags = " ".join(filtered)
+
+        if 'declension' in original_tags_list and self.parent is None:
+            self.must_get_parent = True
+            self.log_change("set must_get_parent", "must_get_parent",
+                            False, self.must_get_parent)
+
+        if 'noun' in original_tags_list:
+            ALLOWED_NAME_TAGS = ['common-gender', 'neuter-gender']
+            # must have information about gender
+            if not ('common-gender' in original_tags_list
+                    or 'neuter-gender' in original_tags_list):
+                self.must_get_gender = True
+            self.log_change("set must_get_gender", "must_get_gender",
+                            False, self.must_get_gender)
+
+
+    def normalize_lowercase(self):
+        original = self.term
+        self.term = self.term.lower()
+        if original != self.term:
+            self.log_change("lowercased term", "term", original, self.term)
+
+    def normalize_remove_extra_spaces(self):
+        original = self.term
+        self.term = ' '.join(self.term.split())
+        if original != self.term:
+            self.log_change("removed extra spaces", "term", original, self.term)
+
+    def normalize(self):
+        self.normalize_remove_extra_spaces()
+        self.normalize_lowercase()
+        self.normalize_tags()
+
+    @classmethod
+    def from_lute_entry(cls, entry: LuteEntry, part_of_speech: str):
+        normalized = cls(
+            term=entry.term,
+            parent=entry.parent,
+            translation=entry.translation,
+            language=entry.language,
+            tags=entry.tags,
+            added=entry.added,
+            status=entry.status,
+            link_status=entry.link_status,
+            pronunciation=entry.pronunciation,
+            part_of_speech=part_of_speech,
+        )
+        normalized.normalize()
+        return normalized
