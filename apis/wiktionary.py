@@ -26,8 +26,7 @@ def cached_request_wrapper():
     return session
 
 
-def fetch_wiktionary_page(page_title: str) -> BeautifulSoup | bool:
-    target_lang = "Danish"
+def fetch_wiktionary_page(page_title: str, target_lang: str = "Danish") -> BeautifulSoup | bool:
     base_url = "https://en.wiktionary.org/w/api.php"
     params = {
         "action": "parse",
@@ -167,3 +166,11 @@ def get_word_categories_from_subsections(
             return get_word_categories_from_subsections(subsections[3:], categories + [current_entry | new_info], {})
         else:
             return get_word_categories_from_subsections(subsections[2:], categories, current_entry)
+
+def get_word_definition(word: str, language: str = "Danish"):
+    soup = fetch_wiktionary_page(word)
+    toc = retrieve_toc_from_soup(soup)
+    target_section = find_target_lang_section_in_toc(toc, language)
+    subs = retrieve_target_lang_subsections(language, soup)
+    res_dict = get_word_categories_from_subsections(subs, [], {})
+    return res_dict

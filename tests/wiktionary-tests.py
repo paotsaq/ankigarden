@@ -333,6 +333,31 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                          'to live, reside, dwell']
                                      }])
 
+    def test_can_get_definition_from_word(self):
+        word = "tale"
+        language = "Danish"
+        soup = fetch_wiktionary_page(word)
+        toc = retrieve_toc_from_soup(soup)
+        target_section = find_target_lang_section_in_toc(toc, language)
+        subs = retrieve_target_lang_subsections(language, soup)
+        res_dict = get_word_definition(word, language)
+        self.assertEqual(res_dict, [{"etymology": "From Old Norse tala.",
+                                     "type": "noun",
+                                     "gender": "c",
+                                     "definition": ["speech, talk, address, discourse"]},
+                                    {"etymology": "From Old Norse tala.",
+                                     "type": "verb",
+                                     "conjugation": {
+                                         "imperative": "tal",
+                                         "infinitive": "at tale",
+                                         "present tense": "taler",
+                                         "past tense": "talte",
+                                         "perfect tense": "har talt"
+                                         },
+                                     "definition": ['to make a speech', 'to speak, talk']
+                         }])
+
+
 
     # NOTE still not sure whether it is necessary to check the declension table
     # (and often there is none); at least for nouns, the declension rules are clear,
