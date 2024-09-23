@@ -107,6 +107,7 @@ class Flashcard:
             logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
 
+
 @dataclass
 class LuteEntry:
     term: str
@@ -142,39 +143,6 @@ class LuteEntry:
             return "Learning"
         else:
             raise Exception
-
-Base = declarative_base()
-
-class LuteTableEntry(Base):
-    __tablename__ = 'lute_terms'
-
-    id = Column(Integer, primary_key=True)
-    term = Column(String, nullable=False)
-    parent = Column(String)
-    translation = Column(String)
-    language = Column(String, nullable=False)
-    tags = Column(String)
-    added = Column(DateTime, nullable=False)
-    status = Column(String)
-    link_status = Column(String)
-    pronunciation = Column(String)
-    anki_note_id = Column(Integer)
-    last_synced = Column(DateTime)
-
-    # Factory method to create LuteTableEntry from LuteEntry
-    @classmethod
-    def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
-        return cls(
-            term=lute_entry.term,
-            parent=lute_entry.parent,
-            translation=lute_entry.translation,
-            language=lute_entry.language,
-            tags=lute_entry.tags, 
-            added=lute_entry.added,
-            status=lute_entry.status,
-            link_status=lute_entry.link_status,
-            pronunciation=lute_entry.pronunciation,
-        )
 
 
 @dataclass
@@ -217,8 +185,8 @@ class NormalizedLuteEntry(LuteEntry):
                        original_tags_list))
 
         if filtered != original_tags_list:
-            self.log_change("removed tags", "tags", original, self.tags)
             self.tags = " ".join(filtered)
+            self.log_change("removed tags", "tags", original, self.tags)
 
         if 'declension' in original_tags_list and self.parent is None:
             self.must_get_parent = True
@@ -268,3 +236,36 @@ class NormalizedLuteEntry(LuteEntry):
         )
         normalized.normalize()
         return normalized
+
+Base = declarative_base()
+
+class LuteTableEntry(Base):
+    __tablename__ = 'lute_terms'
+
+    id = Column(Integer, primary_key=True)
+    term = Column(String, nullable=False)
+    parent = Column(String)
+    translation = Column(String)
+    language = Column(String, nullable=False)
+    tags = Column(String)
+    added = Column(DateTime, nullable=False)
+    status = Column(String)
+    link_status = Column(String)
+    pronunciation = Column(String)
+    anki_note_id = Column(Integer)
+    last_synced = Column(DateTime)
+
+    # Factory method to create LuteTableEntry from LuteEntry
+    @classmethod
+    def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
+        return cls(
+            term=lute_entry.term,
+            parent=lute_entry.parent,
+            translation=lute_entry.translation,
+            language=lute_entry.language,
+            tags=lute_entry.tags, 
+            added=lute_entry.added,
+            status=lute_entry.status,
+            link_status=lute_entry.link_status,
+            pronunciation=lute_entry.pronunciation,
+        )
