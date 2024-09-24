@@ -175,7 +175,7 @@ EXPECTED_MULTIPLE_ETYMOLOGIES_SUBSECTIONS = """[<div class="mw-heading mw-headin
 
 EXPECTED_ALL_SUBSECTIONS = """[<div class="mw-heading mw-heading3"><h3 id="Etymology">Etymology</h3><span class="mw-editsection"><span class="mw-editsection-bracket">[</span><a href="/w/index.php?title=franskbr%C3%B8d&amp;action=edit&amp;section=2" title="Edit section: Etymology"><span>edit</span></a><span class="mw-editsection-bracket">]</span></span></div>, <div class="mw-heading mw-heading3"><h3 id="Pronunciation">Pronunciation</h3><span class="mw-editsection"><span class="mw-editsection-bracket">[</span><a href="/w/index.php?title=franskbr%C3%B8d&amp;action=edit&amp;section=3" title="Edit section: Pronunciation"><span>edit</span></a><span class="mw-editsection-bracket">]</span></span></div>, <div class="mw-heading mw-heading3"><h3 id="Noun">Noun</h3><span class="mw-editsection"><span class="mw-editsection-bracket">[</span><a href="/w/index.php?title=franskbr%C3%B8d&amp;action=edit&amp;section=4" title="Edit section: Noun"><span>edit</span></a><span class="mw-editsection-bracket">]</span></span></div>, <div class="mw-heading mw-heading3"><h3 id="References">References</h3><span class="mw-editsection"><span class="mw-editsection-bracket">[</span><a href="/w/index.php?title=franskbr%C3%B8d&amp;action=edit&amp;section=5" title="Edit section: References"><span>edit</span></a><span class="mw-editsection-bracket">]</span></span></div>]"""
 
-
+SOURCE_BEGYNDTE = """<ol><li><span class="form-of-definition use-with-mention"><a href="/wiki/Appendix:Glossary#past_tense" title="Appendix:Glossary">past</a> of <span class="form-of-definition-link"><i class="Latn mention" lang="da"><a href="/wiki/begynde#Danish" title="begynde">begynde</a></i></span></span></li></ol>"""
 
 class TestWiktionaryStepRequests(unittest.TestCase):
 
@@ -238,6 +238,11 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         target_section = find_target_lang_section_in_toc(toc, language)
         subs = retrieve_target_lang_subsections(language, soup)
 
+    def test_can_identify_verb_conjugation(self):
+        EXPECTED = (True, "begynde")
+        soup = BeautifulSoup(SOURCE_BEGYNDTE, features="lxml")
+        self.assertEqual(EXPECTED, check_if_term_is_conjugation(soup))
+
     def test_can_parse_html_from_text_content(self):
         EXPECTED = "Compound of fransk +\u200e brød, after the model of German Franzbrot."
         self.assertEqual(EXPECTED, retrieve_content_from_tag(BeautifulSoup(SOURCE_FRANKS_DEF, features="lxml")))
@@ -285,6 +290,7 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                          }])
 
     def test_can_retrieve_target_lang_multiple_word_role(self):
+        self.maxDiff = None
         word = "tale"
         language = "Danish"
         soup = fetch_wiktionary_page(word)
@@ -336,10 +342,6 @@ class TestWiktionaryStepRequests(unittest.TestCase):
     def test_can_get_definition_from_word(self):
         word = "tale"
         language = "Danish"
-        soup = fetch_wiktionary_page(word)
-        toc = retrieve_toc_from_soup(soup)
-        target_section = find_target_lang_section_in_toc(toc, language)
-        subs = retrieve_target_lang_subsections(language, soup)
         res_dict = get_word_definition(word, language)
         self.assertEqual(res_dict, [{"etymology": "From Old Norse tala.",
                                      "type": "noun",
@@ -357,7 +359,32 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                      "definition": ['to make a speech', 'to speak, talk']
                          }])
 
+    def test_can_identify_verb_conjugation_in_full_query(self):
+        word = "begyndte"
+        language = "Danish"
+        res_dict = get_word_definition(word, language)
+        self.assertEqual(res_dict, [{'parent': 'begynde', 'type': 'conjugation'}])
 
+
+    def test_can_identify_adjective_in_full_query(self):
+        word = "kræsen"
+        language = "Danish"
+        res_dict = get_word_definition(word, language)
+        self.assertEqual(res_dict, [{'etymology': 'From kræse +\u200e -en. Compare Swedish kräsen.',
+                                     'type': 'adjective',
+                                     'definition': ['particular (about food), choosy, picky']}])
+
+    def test_can_identify_many_categories_in_full_query(self):
+        word = "engang"
+        language = "Danish"
+        res_dict = get_word_definition(word, language)
+        self.assertEqual(res_dict, [{'definition': ['once, one day, at one time',
+                                                    'sometime, some day, one day',
+                                                    '(negative) even'],
+                                     'type': 'adverb'},
+                                    {'definition': ['at some unspecified time in the past when...'],
+                                     'type': 'conjunction'}])
+                         
 
     # NOTE still not sure whether it is necessary to check the declension table
     # (and often there is none); at least for nouns, the declension rules are clear,

@@ -17,6 +17,9 @@ from datetime import datetime
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base
 from typing import List, Dict
+from apis.wiktionary import (
+        get_word_definition
+        )
 
 
 class Flashcard:
@@ -148,39 +151,46 @@ class LuteEntry:
 @dataclass
 # NOTE this is still very hardcoded for Danish!
 class NormalizedLuteEntry(LuteEntry):
-    part_of_speech: str
+    part_of_speech: str = ""
     must_get_part_of_speech: bool = False
     must_get_gender: bool = False
     must_get_parent: bool = False
+    must_clean_ion_tag: bool = False
     normalization_log: List[Dict[str, str]] = field(default_factory=list)
 
-    def log_change(self, method: str, field: str, original: str, normalized: str):
+    def log_change(self, method: str, field: str, original: str, normalized: str, fixed: bool = True):
         self.normalization_log.append({
             "method": method,
             "field": field,
             "original": original,
-            "normalized": normalized
+            "normalized": normalized,
+            "fixed": fixed
         })
 
     def normalize_tags(self):
-        ALLOWED_TAGS = ['noun', 'verb', 'declension']
+        ALLOWED_TAGS = ['noun', 'verb', 'declension', 'conjugation']
         TAGS_TO_SUPPRESS = ['vocabulary']
         original = self.tags
-        original_tags_list = original.split()
+        original_tags_list = original.split(", ")
 
-        if original_tags_list == []:
+        # no information about a given term
+        # these might be flashcarded already, too
+        # TODO separate into `parent` case?
+        if original_tags_list == ['']:
             self.must_get_part_of_speech = True
             self.log_change("set must_get_part_of_speech", "must_get_part_of_speech",
-                            False, self.must_get_part_of_speech)
+                            False, self.must_get_part_of_speech, False)
             return
 
+        # lowercase tags
         lower_cased_tags = list(map(lambda tag: tag.lower(),
-                                    self.tags.split()))
+                                    self.tags.split(", ")))
 
         if lower_cased_tags != original_tags_list:
             self.tags = " ".join(lower_cased_tags)
             self.log_change("lowercased tags", "tags", original, self.tags)
 
+        # removes unnecessary tags
         filtered = list(filter(lambda tag: tag not in TAGS_TO_SUPPRESS,
                        original_tags_list))
 
@@ -188,10 +198,19 @@ class NormalizedLuteEntry(LuteEntry):
             self.tags = " ".join(filtered)
             self.log_change("removed tags", "tags", original, self.tags)
 
-        if 'declension' in original_tags_list and self.parent is None:
-            self.must_get_parent = True
-            self.log_change("set must_get_parent", "must_get_parent",
-                            False, self.must_get_parent)
+        # in lute, parent and child terms share tags; so it is possible
+        # that a derivation has no parent and must be matched
+        if 'declension' in original_tags_list or 'conjugation' in original_tags_list:
+            if self.parent is None:
+                self.must_get_parent = True
+                self.log_change("set must_get_parent", "must_get_parent",
+                                False, self.must_get_parent, False)
+            else:
+                # NOTE I'm not sure what happens in these cases.
+                self.must_clean_ion_tag = True
+                self.log_change("set must_clean_ion_tag", "must_clean_ion_tag",
+                                False, self.must_clean_ion_tag, False)
+                pass
 
         if 'noun' in original_tags_list:
             ALLOWED_NAME_TAGS = ['common-gender', 'neuter-gender']
@@ -199,9 +218,8 @@ class NormalizedLuteEntry(LuteEntry):
             if not ('common-gender' in original_tags_list
                     or 'neuter-gender' in original_tags_list):
                 self.must_get_gender = True
-            self.log_change("set must_get_gender", "must_get_gender",
-                            False, self.must_get_gender)
-
+                self.log_change("set must_get_gender", "must_get_gender",
+                                False, self.must_get_gender, False)
 
     def normalize_lowercase(self):
         original = self.term
@@ -220,8 +238,30 @@ class NormalizedLuteEntry(LuteEntry):
         self.normalize_lowercase()
         self.normalize_tags()
 
+    def fix_logged_problems(self):
+        if self.must_get_part_of_speech:
+            # TODO later this will be shielded by an API call
+            categories = get_word_definition(self.term, "Danish")
+            print(categories)
+            if categories:
+                self.tags += ", ".join(list(map(lambda cat: cat["type"],
+                                                categories)))
+                # TODO 'conjugation' should be removed in this case
+                # TODO create parent entry if there is none
+                self.parent += ", ".join(list(map(lambda cat: cat["parent"],
+                                                filter(lambda cat: 'parent' in cat,
+                                                       categories))))
+                part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
+                                            self.normalization_log))
+                # NOTE I don't like this — mutability is iffy. Should be a proper copy.
+                new_log = part_of_speech_log
+                new_log["fixed"] = True
+                self.normalization_log.remove(part_of_speech_log) 
+                self.normalization_log.append(new_log)
+
+
     @classmethod
-    def from_lute_entry(cls, entry: LuteEntry, part_of_speech: str):
+    def from_lute_entry(cls, entry: LuteEntry):
         normalized = cls(
             term=entry.term,
             parent=entry.parent,
@@ -232,10 +272,10 @@ class NormalizedLuteEntry(LuteEntry):
             status=entry.status,
             link_status=entry.link_status,
             pronunciation=entry.pronunciation,
-            part_of_speech=part_of_speech,
         )
         normalized.normalize()
         return normalized
+
 
 Base = declarative_base()
 

@@ -10,6 +10,7 @@ from bs4.element import (
         )
 from itertools import takewhile
 import re
+from typing import Tuple
 
 SUBSECTIONS = [
         'Noun',
@@ -94,7 +95,7 @@ def retrieve_target_lang_subsections(target_lang: str, soup, relevant=True) -> l
 
 
 def retrieve_content_from_tag(html_tag: Tag):
-    soup = BeautifulSoup(html_tag.get_text(), 'html.parser')
+    soup = BeautifulSoup(html_tag.get_text(), features="lxml")
     return soup.get_text().strip()
 
 
@@ -105,6 +106,16 @@ def retrieve_definition_from_tag(html_tag: Tag):
     if html_tag.dl is not None:
         html_tag.dl.decompose()
     return retrieve_content_from_tag(html_tag)
+
+
+def check_if_term_is_conjugation(subsection: Tag) -> Tuple[bool] | Tuple[bool | str]:
+    target_elements = subsection.find_all("li")
+    if target_elements:
+        verb_link = target_elements[0].find('span', class_='form-of-definition-link')
+        if verb_link and verb_link.get_text():
+            return (True, verb_link.get_text().strip())
+    return (False, "")
+
 
 def get_verb_conjugation_from_subsection(subsection: Tag):
     # NOTE this is parsing the definition verb header, and
@@ -150,27 +161,47 @@ def get_word_categories_from_subsections(
                         "definition": definition
                         }
             elif subsection == "Verb":
-                conjugation = get_verb_conjugation_from_subsection(subsections[1])
+                # NOTE in case the term is itself a conjugation,
+                # there's much less information to retrieve
+                # print(subsections[0])
+                # print(subsections[1])
+                term_is_conjugation, parent = check_if_term_is_conjugation(subsections[2])
+                if term_is_conjugation:
+                    new_info = {
+                            "type": "conjugation",
+                            "parent": parent,
+                            }
+                else:
+                    conjugation = get_verb_conjugation_from_subsection(subsections[1])
+                    definition = retrieve_definition_from_tag(subsections[2]).split("\n")
+                    new_info = {
+                            "type": subsection.lower(),
+                            "conjugation": conjugation,
+                            "definition": definition
+                            }
+            elif subsection in ["Adverb", "Conjunction", "Adjective"]:
                 definition = retrieve_definition_from_tag(subsections[2]).split("\n")
                 new_info = {
                         "type": subsection.lower(),
-                        "conjugation": conjugation,
                         "definition": definition
                         }
 
             # NOTE must check whether `current_entry` already has an etymology;
             # if it does — the usual case — just keep adding information to the `dict` object
             # otherwise, retrieve it from the last entry
-            if "etymology" not in current_entry.keys():
+            if ("etymology" not in current_entry.keys() and 
+                len(categories) >= 1 and "etymology" in categories[-1] and
+                not (subsection == "Verb" and term_is_conjugation)):
                 new_info["etymology"] = categories[-1]["etymology"]
             return get_word_categories_from_subsections(subsections[3:], categories + [current_entry | new_info], {})
         else:
             return get_word_categories_from_subsections(subsections[2:], categories, current_entry)
 
+
 def get_word_definition(word: str, language: str = "Danish"):
     soup = fetch_wiktionary_page(word)
-    toc = retrieve_toc_from_soup(soup)
-    target_section = find_target_lang_section_in_toc(toc, language)
+    # toc = retrieve_toc_from_soup(soup)
+    # target_section = find_target_lang_section_in_toc(toc, language)
     subs = retrieve_target_lang_subsections(language, soup)
     res_dict = get_word_categories_from_subsections(subs, [], {})
     return res_dict
