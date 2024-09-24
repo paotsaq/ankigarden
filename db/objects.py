@@ -36,7 +36,8 @@ class Flashcard:
         content_type: str = "",
         deck: str = "",
         notetype: str = "",
-        added: int = 0
+        added_lute_timestamp: int = 0,
+        added_to_anki: bool = False
     ):
         self.source = source
         self.source_lang = source_lang
@@ -48,8 +49,8 @@ class Flashcard:
         self.tags = tags
         self.content_type = content_type
         self.deck = deck
-        self.notetype = notetype
-        self.added = added
+        self.added_lute_timestamp = added_lute_timestamp
+        self.added_to_anki = added_to_anki
 
     def __repr__(self):
         return ("|" +
@@ -61,6 +62,39 @@ class Flashcard:
                     ]) +
                 "|")
 
+    @classmethod
+    def from_lute_entry(cls, entry: LuteEntry) -> Optional['Flashcard']:
+        tags = entry.tags.split(', ')
+        
+        # Check if the entry is a verb in infinitive form, common phrase, or building expression
+        if 'verb' in tags or 'common-phrase' in tags or 'building-expression' in tags:
+            return cls(
+                source=entry.term,
+                target=entry.translation,
+                context=entry.parent,
+                tags=entry.tags,
+                added_lute_timestamp=int(datetime.strptime(entry.added, "%Y-%m-%d %H:%M:%S").timestamp()),
+                added_to_anki=False
+            )
+        else:
+            return None
+
+    def find_similar_in_anki(self, db_path: str) -> bool:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT id FROM notes 
+        WHERE (flds LIKE ? OR flds LIKE ?) 
+        AND tags LIKE ?
+        """
+        
+        cursor.execute(query, (f"%{self.source}%", f"%{self.target}%", f"%{','.join(self.tags)}%"))
+        result = cursor.fetchone()
+        
+        conn.close()
+        
+        return result is not None
     def get_translation(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
         if `invert`, then it reverses the query,
@@ -151,7 +185,6 @@ class LuteEntry:
 @dataclass
 # NOTE this is still very hardcoded for Danish!
 class NormalizedLuteEntry(LuteEntry):
-    part_of_speech: str = ""
     must_get_part_of_speech: bool = False
     must_get_gender: bool = False
     must_get_parent: bool = False
@@ -242,7 +275,6 @@ class NormalizedLuteEntry(LuteEntry):
         if self.must_get_part_of_speech:
             # TODO later this will be shielded by an API call
             categories = get_word_definition(self.term, "Danish")
-            print(categories)
             if categories:
                 self.tags += ", ".join(list(map(lambda cat: cat["type"],
                                                 categories)))
