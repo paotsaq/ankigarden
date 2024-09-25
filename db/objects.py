@@ -203,7 +203,7 @@ class LuteTableEntry(Base):
     anki_note_id = Column(Integer)
     last_synced = Column(DateTime)
 
-    # Factory method to create LuteTableEntry from LuteEntry
+    # this will be done from NormalizedLuteEntry, actually
     @classmethod
     def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
         return cls(
@@ -217,6 +217,7 @@ class LuteTableEntry(Base):
             link_status=lute_entry.link_status,
             pronunciation=lute_entry.pronunciation,
         )
+
 
 class Flashcard:
     def __init__(
@@ -258,6 +259,7 @@ class Flashcard:
                     ]) +
                 "|")
 
+    # this will be done from NormalizedLuteEntry, actually
     @classmethod
     def from_lute_entry(cls, entry: LuteEntry) -> Optional['Flashcard']:
         ALLOWED_TAGS = [
@@ -282,22 +284,7 @@ class Flashcard:
         else:
             return None
 
-    def find_similar_in_anki(self, db_path: str) -> bool:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT id FROM notes 
-        WHERE (flds LIKE ? OR flds LIKE ?) 
-        AND tags LIKE ?
-        """
-        
-        cursor.execute(query, (f"%{self.source}%", f"%{self.target}%", f"%{','.join(self.tags)}%"))
-        result = cursor.fetchone()
-        
-        conn.close()
-        
-        return result is not None
+
     def get_translation(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
         if `invert`, then it reverses the query,
