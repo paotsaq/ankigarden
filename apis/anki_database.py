@@ -269,22 +269,3 @@ def update_lute_entry_with_anki_id(session: Session, lute_entry: LuteTableEntry,
     except Exception as e:
         print(f"Error updating LuteTableEntry: {str(e)}")
         session.rollback()
-
-
-def match_lute_terms_with_anki_database(database_path: str):
-    session, engine = create_connection_to_database(database_path)
-    try:
-        unsynced_entries = session.query(LuteTableEntry).filter(LuteTableEntry.anki_note_id.is_(None)).all()
-        for entry in unsynced_entries:
-            anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, entry, "alex-danish")
-            if anki_note_id:
-                print(f"Matched and updated entry: {entry.term}")
-            # else:
-                # print(f"No match found for entry: {entry.term}")
-        session.commit()
-        print("Matching process completed successfully.")
-    except Exception as e:
-        print(f"An error occurred during the matching process: {str(e)}")
-        session.rollback()
-    finally:
-        close_connection_to_database(session, engine)

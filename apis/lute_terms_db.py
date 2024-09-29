@@ -2,7 +2,8 @@ from logger import logger
 from db.objects import (
         Flashcard,
         LuteEntry,
-        LuteTableEntry
+        LuteTableEntry,
+        NormalizedLuteEntry
         )
 import json
 import csv
@@ -66,6 +67,10 @@ def save_lute_entries_to_db(lute_entries: List[LuteEntry], db_session: Session) 
     db_session.commit()
 
     session, engine = create_connection_to_database(db_path)
+
+
+def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
+    session, engine = create_connection_to_database(db_path)
     
     try:
         parsed_entries = parse_lute_export_from_file(lute_csv_path)
@@ -89,7 +94,6 @@ def save_lute_entries_to_db(lute_entries: List[LuteEntry], db_session: Session) 
         # Close the connection
         close_connection_to_database(session, engine)
 
-
 ### LUTE TERMS MATCHING WITH FLASHCARD
 
 def match_lute_terms_with_anki_database(database_path: str):
@@ -97,7 +101,10 @@ def match_lute_terms_with_anki_database(database_path: str):
     try:
         unsynced_entries = session.query(LuteTableEntry).filter(LuteTableEntry.anki_note_id.is_(None)).all()
         for entry in unsynced_entries:
-            anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, entry, "alex-danish")
+            normalized_entry = NormalizedLuteEntry(entry)
+            normalized_entry.normalize()
+            normalized_entry.fix_logged_problems()
+            anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, normalized_entry, "alex-danish")
             if anki_note_id:
                 print(f"Matched and updated entry: {entry.term}")
             else:
