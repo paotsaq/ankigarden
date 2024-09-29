@@ -104,8 +104,8 @@ def match_lute_terms_with_anki_database(database_path: str):
                 print(f"No match found for entry: {entry.term}")
         session.commit()
         print("Matching process completed successfully.")
-    except Exception as e:
-        print(f"An error occurred during the matching process: {str(e)}")
-        session.rollback()
+    # except Exception as e:
+        # print(f"An error occurred during the matching process: {str(e)}")
+        # session.rollback()
     finally:
         close_connection_to_database(session, engine)

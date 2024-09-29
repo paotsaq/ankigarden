@@ -59,6 +59,10 @@ class LuteEntry:
         else:
             raise Exception
 
+    def __repr__(self):
+        return (f"term: {self.term} | translation: {self.translation}\n" +
+                f"parent: {self.parent}")
+
 
 @dataclass
 # NOTE this is still very hardcoded for Danish!
@@ -218,6 +222,10 @@ class LuteTableEntry(Base):
             link_status=lute_entry.link_status,
             pronunciation=lute_entry.pronunciation,
         )
+
+    def __repr__(self):
+        return (f"term: {self.term} | translation: {self.translation}\n" +
+                f"parent: {self.parent}")
 
 
 class Flashcard:

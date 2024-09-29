@@ -13,6 +13,7 @@ from const import (
         )
 import json
 from const import ANKI_CONNECT_BASE_URL
+from datetime import datetime
 import requests
 import shutil
 import csv
@@ -133,7 +134,6 @@ def find_exact_match_in_both_fields(
             deck=deck,
             field_name=front_field_name,
             query_on_term=False)
-    print(show_card_info_with_id(front_field_request[0]))
     if len(front_field_request) == 1:
         back_field_request = find_exact_match_in_one_field(
                 lute_entry,
@@ -145,8 +145,6 @@ def find_exact_match_in_both_fields(
     return []
 
 
-
-
 def find_partial_match_in_any_field(
         lute_entry: NormalizedLuteEntry,
         # TODO change these default value
@@ -155,19 +153,23 @@ def find_partial_match_in_any_field(
         back_field_name: str = "target",
         ) -> List[Dict]:
     """checks for exact matches on _either_ source or target fields"""
+    action = "findNotes"
     deck_query = f'"deck:{deck}"'
+
     back_query = " ".join([deck_query,
                       f'"{back_field_name}:*{lute_entry.term}*"',
                       ])
-    front_query = " ".join([deck_query,
-                      f'"{front_field_name}:*{lute_entry.translation}*"',
-                      ])
-    action = "findNotes"
     params = {"query": back_query}
     back_query_result = send_request_to_anki(action, params)
-    params = {"query": front_query}
-    front_query_result = send_request_to_anki(action, params)
-    return back_query_result + front_query_result
+    if lute_entry.translation != '':
+        front_query = " ".join([deck_query,
+                          f'"{front_field_name}:*{lute_entry.translation}*"',
+                          ])
+        params = {"query": front_query}
+        front_query_result = send_request_to_anki(action, params)
+        return back_query_result + front_query_result
+    else:
+        return back_query_result
 
 
 def find_all_matches_in_database(
@@ -223,17 +225,30 @@ def retrieve_matching_flashcard_id_for_lute_entry(
         deck: str
         ) -> int | None:
     results = find_all_matches_in_database(lute_entry, deck)
+    # NOTE this is very unlikely, but in any case a clear match is good to handle
     if len(results["exact_matches_both_fields"]) == 1:
+        print("got exact match on both fields for ", lute_entry)
         anki_note_id = results["exact_matches_both_fields"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
-    elif len(results["exact_match_any_field"]) == 1:
-        print("got exact match on one field for ", lute_entry)
+    # NOTE on my current setup, I would match if both back sides 
+    # (the Danish term) is the same
+    elif len(results["exact_match_back_field"]) == 1:
+        print("got exact match on back field for ", lute_entry)
+        anki_note_id = results["exact_match_back_field"][0]
+        update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
+        return anki_note_id
         print(show_card_info_with_id(results["exact_match_any_field"]))
+    # NOTE this might happen on synonyms; might as well have it too
+    elif len(results["exact_match_front_field"]) == 1:
+        print("got exact match on front field for ", lute_entry)
+        anki_note_id = results["exact_match_front_field"][0]
+        update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
+        return anki_note_id
     elif len(results["partial_match_any_field"]) > 0:
         print("got partial match on one field for ", lute_entry)
-    else:
-        print("No match found for", lute_entry)
+    # else:
+        # print("No match found for", lute_entry)
     return None
 
 
@@ -260,15 +275,12 @@ def match_lute_terms_with_anki_database(database_path: str):
     session, engine = create_connection_to_database(database_path)
     try:
         unsynced_entries = session.query(LuteTableEntry).filter(LuteTableEntry.anki_note_id.is_(None)).all()
-        
         for entry in unsynced_entries:
             anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, entry, "alex-danish")
-            
             if anki_note_id:
                 print(f"Matched and updated entry: {entry.term}")
-            else:
-                print(f"No match found for entry: {entry.term}")
-        
+            # else:
+                # print(f"No match found for entry: {entry.term}")
         session.commit()
         print("Matching process completed successfully.")
     except Exception as e:
