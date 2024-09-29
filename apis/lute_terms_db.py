@@ -1,14 +1,19 @@
 from logger import logger
-from db.objects import Flashcard, LuteEntry
+from db.objects import (
+        Flashcard,
+        LuteEntry,
+        LuteTableEntry
+        )
 import json
 import csv
 from io import StringIO
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
-import sqlite3
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.engine import Engine
+import shutil
+from datetime import datetime
+import sqlite3
 
 
 ## DATABASE HANDLING
@@ -55,3 +60,31 @@ def save_lute_entries_to_db(lute_entries: List[LuteEntry], db_session: Session) 
             # Add new entry
             db_session.add(entry)
     db_session.commit()
+
+
+def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
+    session, engine = create_connection_to_database(db_path)
+    
+    try:
+        parsed_entries = parse_lute_export_from_file(lute_csv_path)
+
+        # Convert parsed entries to LuteEntry objects
+        lute_entries = [LuteEntry.from_dict(entry) for entry in parsed_entries]
+
+        # Convert to LuteTableEntry objects
+        lute_table_entries = [LuteTableEntry.from_lute_entry(entry) for entry in lute_entries]
+
+        # Add and commit the LuteTableEntries to the database
+        session.add_all(lute_table_entries)
+        session.commit()
+
+        print(f"Successfully saved {len(lute_table_entries)} entries to the database.")
+    
+    # except Exception as e:
+        # print(f"An error occurred: {e}")
+    
+    finally:
+        # Close the connection
+        close_connection_to_database(session, engine)
+
+
