@@ -135,18 +135,19 @@ def test_all_matches_with_many_results():
             }
 
 
-def test_pairing_of_term_to_flashcard():
+def test_pairing_of_term_to_flashcard_exact_match():
     lute_entry = NormalizedLuteEntry(
-        term="søge",
+        term="bog",
         parent="",
-        translation="to search",
-        tags="verb",
+        translation="book",
         language="Danish",
+        tags="noun",
         added="2024-08-17 12:51:06",
         status="1",
         link_status="",
         pronunciation="",
     )
+
 
 
 # def test_partial_match_conjunction():

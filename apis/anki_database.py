@@ -21,145 +21,12 @@ from typing import (
         Dict,
         List
         )
+from sqlalchemy.orm import (
+        sessionmaker,
+        Session,
+        )
+from sqlalchemy.engine import Engine, create_engine
 
-
-# def create_connection_to_database(database_path: str) -> list[Session, Engine]:
-    # engine = create_engine('sqlite://' + database_path)
-    # intermediate_session = sessionmaker(bind=engine)
-    # session = intermediate_session()
-    # return session, engine
-
-
-# def close_connection_to_database(session: Session, engine: Engine):
-    # session.close()
-    # engine.dispose()
-
-
-# def retrieve_all_flashcards_from_database(session: Session) -> list[Flashcard]:
-    # fcs = session.query(Flashcard).all()
-    # return fcs
-
-
-# def retrieve_flashcards_without_source(session: Session) -> list[Flashcard]:
-    # return session.query(Flashcard).filter(Flashcard.source.is_(None)).all()
-
-
-# def retrieve_flashcards_without_audio_file_path(session: Session) -> list[Flashcard]:
-    # return session.query(Flashcard).filter(Flashcard.audio_filename.is_(None)).all()
-
-
-# def update_flashcards_to_added_with_given_tag(
-        # session: Session,
-        # target_tag: str
-        # ):
-    # stmt = (
-        # update(Flashcard).
-        # where(Flashcard.tags.contains(target_tag)).
-        # values(added=1)
-        # )
-    # session.execute(stmt)
-    # session.commit()
-
-
-# def parse_line_from_prompt(line: str) -> list[str, str | None, str | None]:
-    # parts = line.split('|')
-    # query, tags, context = parts + [None] * (3 - len(parts))  # Unpack parts, filling missing values with None
-    # return query, tags, context
-
-
-# # NOTE `notetype` field must still be refactored
-# def create_flashcard_from_prompt_line(prompt: str,
-                                      # target_lang: str,
-                                      # source_lang: str,
-                                      # notetype: str = "Basic (and reversed) with pronunciation"
-                                      # ) -> Flashcard:
-    # target, tags, context = parse_line_from_prompt(prompt)
-    # return Flashcard(target_lang = target_lang,
-                     # target = target,
-                     # source_lang = source_lang,
-                     # context = context,
-                     # notetype = notetype,
-                     # tags = tags,
-                     # )
-
-# def import_prompts_from_text_file_to_database(prompts_filename: str,
-                                              # session: Session,
-                                              # target_lang: str,
-                                              # source_lang: str,
-                                              # ) -> list[Flashcard]:
-    # with open(prompts_filename, "r") as prompts:
-        # lines = prompts.read().strip().splitlines()
-        # for line in lines:
-            # session.add(create_flashcard_from_prompt_line(line, target_lang, source_lang))
-    # session.commit()
-
-
-# def create_anki_import_string(fcs: list[Flashcard],
-                              # SEP: str,
-                              # TAGS_COLUMN: int,
-                              # NOTETYPE_COLUMN: int,
-                              # DECK: str,
-                              # TAGS = list[str],
-                              # COLUMNS = list[str],
-                              # NOTETYPE = str
-                              # ) -> str:
-    # header = "\n".join([
-        # f'#separator:{SEP}',
-        # f'#tags:{" ".join(TAGS)}',
-        # f'#columns:{SEP.join(COLUMNS)}',
-        # f'#deck: {DECK}',
-        # f'#tags column: {TAGS_COLUMN}',
-        # f'#notetype column: {NOTETYPE_COLUMN}',
-        # ])
-    # body = "\n".join(list(map(lambda fc:
-                              # SEP.join([
-                                  # fc.source,
-                                  # fc.target,
-                                  # f"[sound:{fc.audio_filename}]",
-                                  # " ".join(TAGS + [fc.tags]),
-                                  # NOTETYPE]) + "|",
-                              # fcs)))
-    # return "\n\n".join([header, body])
-
-
-# def create_anki_import_file(anki_import_str: str,
-                            # anki_import_filename: str):
-    # with open(anki_import_filename, "w") as f:
-        # f.write(anki_import_str)
-
-
-# def create_anki_import_file_of_not_added_flashcards(batch_name: str):
-    # ANKI_TEXTS_DIR = "anki-textfile-outputs/"
-    # ANKI_IMPORT_FILENAME = f"anki-{batch_name}.txt"
-
-    # SEP = "|"
-    # TAGS_COLUMN = 4
-    # NOTETYPE_COLUMN = 5
-    # DECK = "alex-danish"
-    # TARGET_LANG = "Danish"
-    # SOURCE_LANG = "English"
-    # COLUMNS = ["source", "target", "pronunciation"]
-    # NOTETYPE = "Basic (and reversed) with pronunciation"
-
-    # session, engine = create_connection_to_database(DATABASE_FILE_PATH)
-    # fcs =  session.query(Flashcard).filter(Flashcard.added.is_(0)).all()
-    # anki_str = create_anki_import_string(fcs,
-                               # SEP,
-                               # TAGS_COLUMN,
-                               # NOTETYPE_COLUMN,
-                               # DECK,
-                               # [batch_name],
-                               # COLUMNS,
-                               # NOTETYPE)
-    # create_anki_import_file(anki_str, ANKI_TEXTS_DIR + ANKI_IMPORT_FILENAME)
-    # stmt = (
-        # update(Flashcard).
-        # where(Flashcard.added.is_(0)).
-        # values(added=1)
-        # )
-    # session.execute(stmt)
-    # session.commit()
-    # close_connection_to_database(session, engine)
 
 ### LUTE FILE IMPORT
 
@@ -332,44 +199,63 @@ def find_all_matches_in_database(lute_entry: NormalizedLuteEntry, deck: str) -> 
     return match_results
 
 
-def pair_lute_table_entry_with_flashcard(lute_entry: LuteTableEntry) -> None:
-    pass
+### LUTE TERMS MATCHING WITH FLASHCARD
+
+def retrieve_matching_flashcard_id_for_lute_entry(
+        session: Session,
+        lute_entry: LuteTableEntry,
+        deck: str
+        ) -> int | None:
+    results = find_all_matches_in_database(lute_entry, deck)
+    if len(results["exact_matches_both_fields"]) == 1:
+        anki_note_id = results["exact_matches_both_fields"][0]
+        update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
+        return anki_note_id
+    elif len(results["exact_match_any_field"]) == 1:
+        print("got exact match on one field for ", lute_entry)
+    elif len(results["partial_match_any_field"]) > 0:
+        print("got partial match on one field for ", lute_entry)
+    else:
+        print("No match found for", lute_entry)
+    return None
 
 
-# def find_partial_translation_matches(lute_entry: LuteEntry) -> List[Dict]:
-    # query = f'"Back:*{lute_entry.translation}*"'
-    # return execute_anki_query(query)
+def update_lute_entry_with_anki_id(session: Session, lute_entry: LuteTableEntry, anki_note_id: int) -> None:
+    try:
+        db_entry = session.query(LuteTableEntry).filter_by(
+            id=lute_entry.id,
+        ).first()
+
+        if db_entry:
+            db_entry.anki_note_id = anki_note_id
+            db_entry.last_synced = datetime.now()
+            session.commit()
+            print(f"Updated LuteTableEntry for term '{lute_entry.term}' with Anki note ID: {anki_note_id}")
+        else:
+            print(f"No matching LuteTableEntry found for term '{lute_entry.term}'")
+
+    except Exception as e:
+        print(f"Error updating LuteTableEntry: {str(e)}")
+        session.rollback()
 
 
-# def find_tag_matches(lute_entry: LuteEntry) -> List[Dict]:
-    # tags = lute_entry.tags.split(", ")
-    # matches = []
-    # for tag in tags:
-        # query = f'tag:{tag}'
-        # matches.extend(execute_anki_query(query))
-    # return matches
-
-
-# def find_fuzzy_matches(lute_entry: LuteEntry) -> List[Dict]:
-    # # This is a placeholder for a more sophisticated fuzzy matching algorithm
-    # # You might want to use libraries like fuzzywuzzy or implement your own logic
-    # query = f'"Front:{lute_entry.term[:3]}*" OR "Back:{lute_entry.translation[:3]}*"'
-    # return execute_anki_query(query)
-
-
-# def execute_anki_query(query: str) -> List[Dict]:
-    # action = "findCards"
-    # params = {"query": query}
-    # card_ids = send_request_to_anki(action, params)
-    
-    # if not isinstance(card_ids, list) or len(card_ids) == 0:
-        # return []
-
-    # # Fetch card info for the found cards
-    # action = "cardsInfo"
-    # params = {"cards": card_ids}
-    # cards_info = send_request_to_anki(action, params)
-
-    # return [{"term": card["fields"]["Front"]["value"], 
-             # "translation": card["fields"]["Back"]["value"]} 
-            # for card in cards_info]
+def match_lute_terms_with_anki_database(database_path: str):
+    session, engine = create_connection_to_database(database_path)
+    try:
+        unsynced_entries = session.query(LuteTableEntry).filter(LuteTableEntry.anki_note_id.is_(None)).all()
+        
+        for entry in unsynced_entries:
+            anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, entry, "alex-danish")
+            
+            if anki_note_id:
+                print(f"Matched and updated entry: {entry.term}")
+            else:
+                print(f"No match found for entry: {entry.term}")
+        
+        session.commit()
+        print("Matching process completed successfully.")
+    except Exception as e:
+        print(f"An error occurred during the matching process: {str(e)}")
+        session.rollback()
+    finally:
+        close_connection_to_database(session, engine)

@@ -9,11 +9,15 @@ import csv
 from io import StringIO
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.engine import Engine
+from sqlalchemy.orm import (
+        sessionmaker,
+        Session,
+        )
+from sqlalchemy.engine import Engine, create_engine
 import shutil
 from datetime import datetime
 import sqlite3
+from apis.anki_database import retrieve_matching_flashcard_id_for_lute_entry
 
 
 ## DATABASE HANDLING
@@ -28,7 +32,7 @@ def close_connection_to_database(session: Session, engine: Engine) -> None:
     engine.dispose()
 
 
-### LUTE FILE IMPORT
+### LUTE TERMS FILE IMPORT
 
 def parse_lute_term_output(line: list) -> Dict[str, str]:
     TERMS_KEYS: List[str] = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
@@ -61,8 +65,6 @@ def save_lute_entries_to_db(lute_entries: List[LuteEntry], db_session: Session) 
             db_session.add(entry)
     db_session.commit()
 
-
-def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
     session, engine = create_connection_to_database(db_path)
     
     try:
@@ -88,3 +90,22 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
         close_connection_to_database(session, engine)
 
 
+### LUTE TERMS MATCHING WITH FLASHCARD
+
+def match_lute_terms_with_anki_database(database_path: str):
+    session, engine = create_connection_to_database(database_path)
+    try:
+        unsynced_entries = session.query(LuteTableEntry).filter(LuteTableEntry.anki_note_id.is_(None)).all()
+        for entry in unsynced_entries:
+            anki_note_id = retrieve_matching_flashcard_id_for_lute_entry(session, entry, "alex-danish")
+            if anki_note_id:
+                print(f"Matched and updated entry: {entry.term}")
+            else:
+                print(f"No match found for entry: {entry.term}")
+        session.commit()
+        print("Matching process completed successfully.")
+    except Exception as e:
+        print(f"An error occurred during the matching process: {str(e)}")
+        session.rollback()
+    finally:
+        close_connection_to_database(session, engine)

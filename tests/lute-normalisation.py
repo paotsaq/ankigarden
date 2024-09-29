@@ -88,7 +88,6 @@ def test_set_untagged_word_as_something():
     assert normalized.tags == "adverb, conjunction"
 
 
-
 def test_set_word_with_parent_and_verb_tag_as_conjugation():
     original = LuteEntry(
         term="besluttede",
