@@ -28,6 +28,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.engine import Engine, create_engine
 
 
+# NOTE Lute import should not be here.
 ### LUTE FILE IMPORT
 
 TERMS_KEYS = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
@@ -102,6 +103,23 @@ def show_card_info_with_id(note_ids: List[int]) -> None:
 
 ##### ANKI FLASHCARD MATCHING
 
+def find_exact_match_in_one_field(
+        lute_entry: NormalizedLuteEntry,
+        deck: str,
+        field_name: str,
+        query_on_term: bool = True
+        ) -> List[Dict]:
+    """checks for exact matches on _either_ source or target fields"""
+    deck_query = f'"deck:{deck}"'
+    to_query = lute_entry.term if query_on_term else lute_entry.translation
+    query = " ".join([deck_query,
+                      f'"{field_name}:{to_query}"',
+                      ])
+    action = "findNotes"
+    params = {"query": query}
+    query_result = send_request_to_anki(action, params)
+    return query_result
+
 def find_exact_match_in_both_fields(
         lute_entry: NormalizedLuteEntry,
         # TODO change these default value
@@ -110,37 +128,23 @@ def find_exact_match_in_both_fields(
         back_field_name: str = "target",
         ) -> List[Dict]:
     """checks for exact matches in both source and target fields"""
-    query = " ".join([f'"deck:{deck}"',
-                      f'"{front_field_name}:{lute_entry.translation}"',
-                      f'"{back_field_name}:{lute_entry.term}"',
-                      ])
-    action = "findNotes"
-    params = {"query": query}
-    result = send_request_to_anki(action, params)
-    return result
+    front_field_request = find_exact_match_in_one_field(
+            lute_entry,
+            deck=deck,
+            field_name=front_field_name,
+            query_on_term=False)
+    print(show_card_info_with_id(front_field_request[0]))
+    if len(front_field_request) == 1:
+        back_field_request = find_exact_match_in_one_field(
+                lute_entry,
+                deck=deck,
+                field_name=back_field_name,
+                query_on_term=True)
+        if front_field_request == back_field_request:
+            return front_field_request
+    return []
 
 
-def find_exact_match_in_any_field(
-        lute_entry: NormalizedLuteEntry,
-        # TODO change these default value
-        deck: str = "alex-danish",
-        front_field_name: str = "source",
-        back_field_name: str = "target",
-        ) -> List[Dict]:
-    """checks for exact matches on _either_ source or target fields"""
-    deck_query = f'"deck:{deck}"'
-    back_query = " ".join([deck_query,
-                      f'"{back_field_name}:{lute_entry.term}"',
-                      ])
-    front_query = " ".join([deck_query,
-                      f'"{front_field_name}:{lute_entry.translation}"',
-                      ])
-    action = "findNotes"
-    params = {"query": back_query}
-    back_query_result = send_request_to_anki(action, params)
-    params = {"query": front_query}
-    front_query_result = send_request_to_anki(action, params)
-    return back_query_result + front_query_result
 
 
 def find_partial_match_in_any_field(
@@ -166,31 +170,43 @@ def find_partial_match_in_any_field(
     return back_query_result + front_query_result
 
 
-def find_all_matches_in_database(lute_entry: NormalizedLuteEntry, deck: str) -> Dict[str, List[Dict]]:
+def find_all_matches_in_database(
+        lute_entry: NormalizedLuteEntry,
+        deck: str,
+        front_field_name: str = "source",
+        back_field_name: str = "target",
+        ) -> Dict[str, List[Dict]]:
     match_results = {
         "exact_matches_both_fields": [],
-        "exact_match_any_field": [],
+        "exact_match_front_field": [],
+        "exact_match_back_field": [],
         "partial_match_any_field": [],
     }
 
     # Exact match on both fields
     exact_both = find_exact_match_in_both_fields(lute_entry, deck)
-    if len(exact_both) != 0: 
-        match_results["exact_matches_both_fields"] = exact_both
-
-    # Exact match on any field (and doesn't consider the previous)
-    exact_any = find_exact_match_in_any_field(lute_entry, deck)
-    if len(exact_any) != 0: 
-        new_any_matches = [match for match in exact_any
-                           if match not in exact_both]
-        match_results["exact_match_any_field"] = new_any_matches
-
-    # Partial match on any field (and doesn't consider the previous)
+    exact_any_front = find_exact_match_in_one_field(
+            lute_entry,
+            deck,
+            front_field_name,
+            False)
+    exact_any_back = find_exact_match_in_one_field(
+            lute_entry,
+            deck,
+            back_field_name,
+            True)
     partial_any = find_partial_match_in_any_field(lute_entry, deck)
-    if len(partial_any) != 0: 
-        new_partial_matches = [match for match in partial_any
-                               if match not in exact_any]
-        match_results["partial_match_any_field"] = new_partial_matches
+    match_results["exact_matches_both_fields"] += exact_both
+    new_front_matches = [match for match in exact_any_front
+                       if match not in exact_both]
+    match_results["exact_match_front_field"] += new_front_matches
+    new_back_matches = [match for match in exact_any_back
+                       if match not in exact_both]
+    match_results["exact_match_back_field"] += new_back_matches
+    new_partial_matches = [match for match in partial_any
+                           if (match not in exact_any_front and
+                               match not in exact_any_back)]
+    match_results["partial_match_any_field"] = new_partial_matches
 
     # # Fuzzy match (for similar spellings or synonyms)
     # fuzzy_matches = find_fuzzy_matches(lute_entry)
@@ -213,6 +229,7 @@ def retrieve_matching_flashcard_id_for_lute_entry(
         return anki_note_id
     elif len(results["exact_match_any_field"]) == 1:
         print("got exact match on one field for ", lute_entry)
+        print(show_card_info_with_id(results["exact_match_any_field"]))
     elif len(results["partial_match_any_field"]) > 0:
         print("got partial match on one field for ", lute_entry)
     else:
