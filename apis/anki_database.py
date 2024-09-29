@@ -1,5 +1,10 @@
 from logger import logger
-from db.objects import Flashcard, LuteEntry
+from db.objects import (
+        Flashcard,
+        LuteEntry,
+        NormalizedLuteEntry,
+        LuteTableEntry,        
+        )
 from const import (
         LANG_MAP,
         DATABASE_FILE_PATH,
@@ -12,6 +17,10 @@ import requests
 import shutil
 import csv
 from io import StringIO
+from typing import (
+        Dict,
+        List
+        )
 
 
 # def create_connection_to_database(database_path: str) -> list[Session, Engine]:
@@ -217,3 +226,150 @@ def move_audio_files_to_anki_mediadir(fcs: list[Flashcard]) -> None:
     for fc in fcs:
         shutil.move(AUDIOS_SOURCE_DIR + fc.audio_filename,
                     AUDIOS_ANKI_DIR + fc.audio_filename)
+
+
+def show_card_info_with_id(note_ids: List[int]) -> None:
+    res = send_request_to_anki("notesInfo",
+                         params={"notes": note_ids})
+    return res 
+
+##### ANKI FLASHCARD MATCHING
+
+def find_exact_match_in_both_fields(
+        lute_entry: NormalizedLuteEntry,
+        # TODO change these default value
+        deck: str = "alex-danish",
+        front_field_name: str = "source",
+        back_field_name: str = "target",
+        ) -> List[Dict]:
+    """checks for exact matches in both source and target fields"""
+    query = " ".join([f'"deck:{deck}"',
+                      f'"{front_field_name}:{lute_entry.translation}"',
+                      f'"{back_field_name}:{lute_entry.term}"',
+                      ])
+    action = "findNotes"
+    params = {"query": query}
+    result = send_request_to_anki(action, params)
+    return result
+
+
+def find_exact_match_in_any_field(
+        lute_entry: NormalizedLuteEntry,
+        # TODO change these default value
+        deck: str = "alex-danish",
+        front_field_name: str = "source",
+        back_field_name: str = "target",
+        ) -> List[Dict]:
+    """checks for exact matches on _either_ source or target fields"""
+    deck_query = f'"deck:{deck}"'
+    back_query = " ".join([deck_query,
+                      f'"{back_field_name}:{lute_entry.term}"',
+                      ])
+    front_query = " ".join([deck_query,
+                      f'"{front_field_name}:{lute_entry.translation}"',
+                      ])
+    action = "findNotes"
+    params = {"query": back_query}
+    back_query_result = send_request_to_anki(action, params)
+    params = {"query": front_query}
+    front_query_result = send_request_to_anki(action, params)
+    return back_query_result + front_query_result
+
+
+def find_partial_match_in_any_field(
+        lute_entry: NormalizedLuteEntry,
+        # TODO change these default value
+        deck: str = "alex-danish",
+        front_field_name: str = "source",
+        back_field_name: str = "target",
+        ) -> List[Dict]:
+    """checks for exact matches on _either_ source or target fields"""
+    deck_query = f'"deck:{deck}"'
+    back_query = " ".join([deck_query,
+                      f'"{back_field_name}:*{lute_entry.term}*"',
+                      ])
+    front_query = " ".join([deck_query,
+                      f'"{front_field_name}:*{lute_entry.translation}*"',
+                      ])
+    action = "findNotes"
+    params = {"query": back_query}
+    back_query_result = send_request_to_anki(action, params)
+    params = {"query": front_query}
+    front_query_result = send_request_to_anki(action, params)
+    return back_query_result + front_query_result
+
+
+def find_all_matches_in_database(lute_entry: NormalizedLuteEntry) -> Dict[str, List[Dict]]:
+    match_results = {
+        "exact_matches_both_fields": [],
+        "exact_match_any_field": [],
+        "partial_match_any_field": [],
+    }
+
+    # Exact match on both fields
+    exact_both = find_exact_match_in_both_fields(lute_entry)
+    if len(exact_both) != 0: 
+        match_results["exact_matches_both_fields"] = exact_both
+
+    # Exact match on any field (and doesn't consider the previous)
+    exact_any = find_exact_match_in_any_field(lute_entry)
+    if len(exact_any) != 0: 
+        new_any_matches = [match for match in exact_any
+                           if match not in exact_both]
+        match_results["exact_match_any_field"] = new_any_matches
+
+    # Partial match on any field (and doesn't consider the previous)
+    partial_any = find_partial_match_in_any_field(lute_entry)
+    if len(partial_any) != 0: 
+        new_partial_matches = [match for match in partial_any
+                               if match not in exact_any]
+        match_results["partial_match_any_field"] = new_partial_matches
+
+    # # Fuzzy match (for similar spellings or synonyms)
+    # fuzzy_matches = find_fuzzy_matches(lute_entry)
+    # match_results["fuzzy_matches"].extend(fuzzy_matches)
+
+    return match_results
+
+
+def pair_lute_table_entry_with_flashcard(lute_entry: LuteTableEntry) -> None:
+    pass
+
+
+# def find_partial_translation_matches(lute_entry: LuteEntry) -> List[Dict]:
+    # query = f'"Back:*{lute_entry.translation}*"'
+    # return execute_anki_query(query)
+
+
+# def find_tag_matches(lute_entry: LuteEntry) -> List[Dict]:
+    # tags = lute_entry.tags.split(", ")
+    # matches = []
+    # for tag in tags:
+        # query = f'tag:{tag}'
+        # matches.extend(execute_anki_query(query))
+    # return matches
+
+
+# def find_fuzzy_matches(lute_entry: LuteEntry) -> List[Dict]:
+    # # This is a placeholder for a more sophisticated fuzzy matching algorithm
+    # # You might want to use libraries like fuzzywuzzy or implement your own logic
+    # query = f'"Front:{lute_entry.term[:3]}*" OR "Back:{lute_entry.translation[:3]}*"'
+    # return execute_anki_query(query)
+
+
+# def execute_anki_query(query: str) -> List[Dict]:
+    # action = "findCards"
+    # params = {"query": query}
+    # card_ids = send_request_to_anki(action, params)
+    
+    # if not isinstance(card_ids, list) or len(card_ids) == 0:
+        # return []
+
+    # # Fetch card info for the found cards
+    # action = "cardsInfo"
+    # params = {"cards": card_ids}
+    # cards_info = send_request_to_anki(action, params)
+
+    # return [{"term": card["fields"]["Front"]["value"], 
+             # "translation": card["fields"]["Back"]["value"]} 
+            # for card in cards_info]

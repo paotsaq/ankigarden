@@ -21,6 +21,8 @@ from apis.wiktionary import (
         get_word_definition
         )
 
+Base = declarative_base()
+
 @dataclass
 class LuteEntry:
     term: str
@@ -185,7 +187,6 @@ class NormalizedLuteEntry(LuteEntry):
         return normalized
 
 
-Base = declarative_base()
 
 class LuteTableEntry(Base):
     __tablename__ = 'lute_terms'
@@ -203,9 +204,10 @@ class LuteTableEntry(Base):
     anki_note_id = Column(Integer)
     last_synced = Column(DateTime)
 
+
     # this will be done from NormalizedLuteEntry, actually
     @classmethod
-    def from_lute_entry(cls, lute_entry: 'LuteEntry') -> 'LuteTableEntry':
+    def from_lute_entry(cls, lute_entry: NormalizedLuteEntry) -> LuteTableEntry:
         return cls(
             term=lute_entry.term,
             parent=lute_entry.parent,
@@ -333,5 +335,3 @@ class Flashcard:
         if not success:
             logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
-
-
