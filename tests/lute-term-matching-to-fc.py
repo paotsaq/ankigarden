@@ -31,10 +31,10 @@ def test_exact_match_on_two_fields_verb():
         link_status="",
         pronunciation="",
     )
-    results = find_exact_match_in_both_fields(lute_entry)
+    results = find_exact_match_in_both_fields(lute_entry, deck="ankigarden-test-deck")
     assert len(results) == 1
-    assert results[0] == 1727246846318
-    card_info = show_card_info_with_id([1727246846318])
+    assert results[0] == 1727246868311
+    card_info = show_card_info_with_id(results)
     assert card_info[0]['fields']['source']['value'] == 'to decide'
     assert card_info[0]['fields']['target']['value'] == 'beslutte'
 
@@ -51,9 +51,9 @@ def test_exact_match_on_two_fields_noun():
         link_status="",
         pronunciation="",
     )
-    results = find_exact_match_in_both_fields(lute_entry)
+    results = find_exact_match_in_both_fields(lute_entry, deck="ankigarden-test-deck")
     assert len(results) == 1
-    assert results[0] == 1727592131510
+    assert results[0] == 1727598631014
     card_info = show_card_info_with_id(results)
     assert card_info[0]['fields']['source']['value'] == 'book'
     assert card_info[0]['fields']['target']['value'] == 'bog'
@@ -71,9 +71,9 @@ def test_exact_match_on_one_field_adverb():
         link_status="",
         pronunciation="",
     )
-    results = find_exact_match_in_any_field(lute_entry)
+    results = find_exact_match_in_any_field(lute_entry, deck="ankigarden-test-deck")
     assert len(results) == 1
-    assert results[0] == 1723545744138
+    assert results[0] == 1727599326447
     card_info = show_card_info_with_id(results)
     assert card_info[0]['fields']['source']['value'] == 'fast'
     assert card_info[0]['fields']['target']['value'] == 'hurtig'
@@ -91,9 +91,9 @@ def test_exact_match_on_one_field_verb():
         link_status="",
         pronunciation="",
     )
-    results = find_exact_match_in_any_field(lute_entry)
+    results = find_exact_match_in_any_field(lute_entry, deck="ankigarden-test-deck")
     assert len(results) == 1
-    assert results[0] == 1724608588974
+    assert results[0] == 1727598720797
     card_info = show_card_info_with_id(results)
     assert card_info[0]['fields']['source']['value'] == 'to search'
     assert card_info[0]['fields']['target']['value'] == 'at søge'
@@ -111,8 +111,8 @@ def test_partial_match_on_one_field_verb():
         link_status="",
         pronunciation="",
     )
-    results = find_partial_match_in_any_field(lute_entry)
-    assert results == [1724144159801, 1724144159802, 1724149577761, 1724608588974, 1724608588974]
+    results = find_partial_match_in_any_field(lute_entry, deck="ankigarden-test-deck")
+    assert results == [1727598658028, 1727598720797, 1727598701143, 1727598720797]
 
 
 def test_all_matches_with_many_results():
@@ -127,11 +127,11 @@ def test_all_matches_with_many_results():
         link_status="",
         pronunciation="",
     )
-    results = find_all_matches_in_database(lute_entry)
+    results = find_all_matches_in_database(lute_entry, deck="ankigarden-test-deck")
     assert results == {
             'exact_matches_both_fields': [],
-            'exact_match_any_field': [1724608588974],
-            'partial_match_any_field': [1724144159801, 1724144159802, 1724149577761]
+            'exact_match_any_field': [1727598720797],
+            'partial_match_any_field': [1727598658028, 1727598701143]
             }
 
 

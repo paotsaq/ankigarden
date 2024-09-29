@@ -187,7 +187,6 @@ class NormalizedLuteEntry(LuteEntry):
         return normalized
 
 
-
 class LuteTableEntry(Base):
     __tablename__ = 'lute_terms'
 
@@ -207,7 +206,7 @@ class LuteTableEntry(Base):
 
     # this will be done from NormalizedLuteEntry, actually
     @classmethod
-    def from_lute_entry(cls, lute_entry: NormalizedLuteEntry) -> LuteTableEntry:
+    def from_lute_entry(cls, lute_entry: NormalizedLuteEntry):
         return cls(
             term=lute_entry.term,
             parent=lute_entry.parent,

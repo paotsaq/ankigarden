@@ -299,7 +299,7 @@ def find_partial_match_in_any_field(
     return back_query_result + front_query_result
 
 
-def find_all_matches_in_database(lute_entry: NormalizedLuteEntry) -> Dict[str, List[Dict]]:
+def find_all_matches_in_database(lute_entry: NormalizedLuteEntry, deck: str) -> Dict[str, List[Dict]]:
     match_results = {
         "exact_matches_both_fields": [],
         "exact_match_any_field": [],
@@ -307,19 +307,19 @@ def find_all_matches_in_database(lute_entry: NormalizedLuteEntry) -> Dict[str, L
     }
 
     # Exact match on both fields
-    exact_both = find_exact_match_in_both_fields(lute_entry)
+    exact_both = find_exact_match_in_both_fields(lute_entry, deck)
     if len(exact_both) != 0: 
         match_results["exact_matches_both_fields"] = exact_both
 
     # Exact match on any field (and doesn't consider the previous)
-    exact_any = find_exact_match_in_any_field(lute_entry)
+    exact_any = find_exact_match_in_any_field(lute_entry, deck)
     if len(exact_any) != 0: 
         new_any_matches = [match for match in exact_any
                            if match not in exact_both]
         match_results["exact_match_any_field"] = new_any_matches
 
     # Partial match on any field (and doesn't consider the previous)
-    partial_any = find_partial_match_in_any_field(lute_entry)
+    partial_any = find_partial_match_in_any_field(lute_entry, deck)
     if len(partial_any) != 0: 
         new_partial_matches = [match for match in partial_any
                                if match not in exact_any]
