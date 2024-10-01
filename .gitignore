@@ -1,3 +1,8 @@
 .env
 .direnv/
 **/__pycache__/**
+demo_cache.sqlite
+*.log
+lute-terms.db
+audios/
+anki_audios_dir
