@@ -6,6 +6,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(funcName)s - %(filen
                     level=logging.DEBUG,
                     handlers=[
                         logging.FileHandler('app.log'),  # Log to a file named 'app.log'
+                        logging.StreamHandler(sys.stdout)  # Log to the console
                     ])
 										
 logger = logging.getLogger(__name__)

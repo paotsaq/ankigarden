@@ -11,6 +11,7 @@ from bs4.element import (
 from itertools import takewhile
 import re
 from typing import Tuple
+from logger import logger
 
 SUBSECTIONS = [
         'Noun',
@@ -40,13 +41,17 @@ def fetch_wiktionary_page(page_title: str, target_lang: str = "Danish") -> Beaut
     session = cached_request_wrapper()
     # NOTE quick caching
     # response = requests.get(base_url, params=params)
-    response = session.get(base_url, params=params)
-    
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.json()["parse"]["text"], 'lxml')
-        return soup
-    else:
-        print(f"Failed to fetch page content. Status code: {response.status_code}")
+    try:
+        response = session.get(base_url, params=params)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.json()["parse"]["text"], 'lxml')
+            logger.debug(f"Successfully queried Wiktionary for {page_title}")
+            return soup
+        else:
+            logger.error(f"Failed to fetch page content. Status code: {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        logger.error("Connection error to Wiktionary API. Am I connected to the internet?")
         return False
 
 
@@ -90,7 +95,8 @@ def retrieve_target_lang_subsections(target_lang: str, soup, relevant=True) -> l
                                  all_content)
         return list(all_subsections)
     else:
-        # print(f"{target_lang} section not found in DOM. Definition might be missing?")
+        # NOTE should we want to do something else? ie. signal the possibility of updating Wiki further?
+        logger.error(f"{target_lang} section not found in DOM. Definition might be missing?")
         return False
 
 
@@ -198,8 +204,11 @@ def get_word_categories_from_subsections(
             return get_word_categories_from_subsections(subsections[2:], categories, current_entry)
 
 
-def get_word_definition(word: str, language: str = "Danish"):
+def get_word_definition(word: str, language: str = "Danish") -> dict | bool:
     soup = fetch_wiktionary_page(word)
+    if not soup:
+        logger.error(f"Failed to get word definition from Wiktionary for {word}.")
+        return False
     # toc = retrieve_toc_from_soup(soup)
     # target_section = find_target_lang_section_in_toc(toc, language)
     subs = retrieve_target_lang_subsections(language, soup)
