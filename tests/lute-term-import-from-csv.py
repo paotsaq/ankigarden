@@ -1,7 +1,19 @@
 import shutil
 import pytest
 from datetime import datetime
-from db.objects import Flashcard, LuteEntry, LuteTableEntry, Base
+import os
+import csv
+from io import StringIO 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
+from db.objects import (
+        Flashcard,
+        LuteEntry,
+        LuteTableEntry,
+        Base
+        )
 from apis.lute_terms_db import (
         create_connection_to_database,
         close_connection_to_database,
@@ -11,14 +23,6 @@ from apis.lute_terms_db import (
         Session, Engine,
         parse_lute_export_from_file
         )
-import os
-import csv
-from io import StringIO 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from alembic.config import Config
-from alembic import command
-
 
 
 @pytest.fixture
@@ -178,7 +182,7 @@ def test_create_lute_table_entry_from_lute_entry():
     assert lute_table_entry.term == lute_entry.term
     assert lute_table_entry.translation == lute_entry.translation
     assert lute_table_entry.language == lute_entry.language
-    assert lute_table_entry.tags == 'adjective'  # Converted list to string
+    assert lute_table_entry.tags == 'adjective'
     assert lute_table_entry.added == lute_entry.added
     assert lute_table_entry.status == "1" 
     assert lute_table_entry.link_status == lute_entry.link_status
@@ -216,7 +220,7 @@ def test_routine_to_add_lute_entries_to_db() -> None:
         os.remove(test_db)
 
 
-### TEST REDUNDANCY OF LUTE TERMS
+### TEST ADDIND AND REDUNDANCY OF LUTE TERMS TO DATABASE
 
 def create_sample_lute_entry():
     return LuteEntry(
@@ -257,7 +261,27 @@ def db_session():
     Base.metadata.drop_all(engine)
 
 
-def test_update_lute_entry(db_session):
+def test_repeated_entry_will_not_add_to_database(db_session):
+    lute_entry = create_sample_lute_entry()
+    table_entry = LuteTableEntry.from_lute_entry(lute_entry)
+    db_session.add(table_entry)
+    db_session.commit()
+    assert db_session.query(LuteTableEntry).all().count() == 1
+    
+    another_lute_entry = create_sample_lute_entry()
+    another_table_entry = LuteTableEntry.from_lute_entry(another_lute_entry)
+    db_session.add(another_table_entry)
+    db_session.commit()
+    assert db_session.query(LuteTableEntry).all().count() == 1
+    
+    very_similar_lute_entry = create_sample_lute_entry()
+    very_similar_lute_entry.term = "appel"
+    very_similar_table_entry = LuteTableEntry.from_lute_entry(very_similar_lute_entry)
+    # Query and assert
+    assert db_session.query(LuteTableEntry).all().count() == 1
+
+
+def test_can_update_lute_table_entry(db_session):
     # Add initial entry
     lute_entry = create_sample_lute_entry()
     table_entry = LuteTableEntry.from_lute_entry(lute_entry)
@@ -265,11 +289,10 @@ def test_update_lute_entry(db_session):
     db_session.commit()
     
     # Update entry
-    table_entry.term = "appel"  # Corrected spelling
-    table_entry.translation = "æble - corrected"
+    table_entry.translation = "another spelling for æble"
     db_session.commit()
     
     # Query and assert
     updated_entry = db_session.query(LuteTableEntry).first()
-    assert updated_entry.term == "appel"
-    assert updated_entry.translation == "æble - corrected"
+    assert updated_entry.term == "apple"
+    assert updated_entry.translation == "another spelling for æble"
