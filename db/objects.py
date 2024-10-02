@@ -23,6 +23,29 @@ from apis.wiktionary import (
 
 Base = declarative_base()
 
+### LUTE_TERMS_TAGS
+PARENT_TAGS = [
+        'noun',
+        'verb',
+        'adjective',
+        'conjunction',
+        'preposition',
+        'adverb',
+        'proper-noun',
+        'building',
+        ]
+CHILD_TAGS = [
+        'declension',
+        'conjugation'
+        ]
+ALLOWED_NOUN_TAGS = [
+        'common-gender',
+        'neuter-gender'
+        ]
+TAGS_TO_SUPPRESS = ['vocabulary']
+ANKIGARDEN_WORKING_TAG = "ankigarden-needs-work"
+ANKIGARDEN_FINAL_TAG = "ankigarden-term"
+
 @dataclass
 class LuteEntry:
     term: str
@@ -60,8 +83,7 @@ class LuteEntry:
             raise Exception
 
     def __repr__(self):
-        return (f"term: {self.term} | translation: {self.translation}\n" +
-                f"parent: {self.parent}")
+        return (f"term: {self.term} | translation: {self.translation} | parent: {self.parent}")
 
 
 @dataclass
@@ -70,6 +92,7 @@ class NormalizedLuteEntry(LuteEntry):
     must_get_part_of_speech: bool = False
     must_get_gender: bool = False
     must_get_parent: bool = False
+    must_get_definition: bool = False
     must_clean_ion_tag: bool = False
     normalization_log: List[Dict[str, str]] = field(default_factory=list)
 
@@ -85,6 +108,7 @@ class NormalizedLuteEntry(LuteEntry):
             status=entry.status,
             link_status=entry.link_status,
             pronunciation=entry.pronunciation,
+            # TODO load `must_` flags from tags?
         )
         # NOTE I'm not sure this is good practice;
         # it should not be taken for granted that normalisation happens at creation
@@ -101,21 +125,28 @@ class NormalizedLuteEntry(LuteEntry):
         })
 
     def normalize_tags(self):
-        PARENT_TAGS = ['noun', 'verb', 'proper-noun', 'building']
-        CHILD_TAGS = ['declension', 'conjugation']
-        TAGS_TO_SUPPRESS = ['vocabulary']
         original = self.tags
         original_tags_list = original.split(", ")
 
-        # no information about a given term
-        # these might be flashcarded already, too
-        # TODO separate into `parent` case?
-        if (not(any(map(lambda tag: tag in self.tags, CHILD_TAGS + PARENT_TAGS)))
-            and not self.parent):
+        # ensure information on part of speech (parent tag)
+        any_part_of_speech = any(filter(lambda tag: tag in self.tags,
+                                        PARENT_TAGS))
+        # checks for child tags
+        any_child_tags = any(filter(lambda tag: tag in self.tags,
+                                    CHILD_TAGS))
+                       # is either a parent term with no child tags
+        parent_or_child = (self.parent == '' and not any_child_tags or  
+                       # a child with parent information & information on relation
+                       self.parent != '' and any_child_tags)
+        if not parent_or_child:
+            if any_child_tags:
+                self.must_get_parent = True
+                self.log_change("set must_get_parent", "must_get_parent",
+                            False, self.must_get_parent, False)
+        if not any_part_of_speech:
             self.must_get_part_of_speech = True
             self.log_change("set must_get_part_of_speech", "must_get_part_of_speech",
                             False, self.must_get_part_of_speech, False)
-            return
 
         # lowercase tags
         lower_cased_tags = list(map(lambda tag: tag.lower(),
@@ -133,28 +164,17 @@ class NormalizedLuteEntry(LuteEntry):
             self.tags = " ".join(filtered)
             self.log_change("removed tags", "tags", original, self.tags)
 
-        # in lute, parent and child terms share tags; so it is possible
-        # that a derivation has no parent and must be matched
-        if 'declension' in original_tags_list or 'conjugation' in original_tags_list:
-            if self.parent is None:
-                self.must_get_parent = True
-                self.log_change("set must_get_parent", "must_get_parent",
-                                False, self.must_get_parent, False)
-            else:
-                # NOTE I'm not sure what happens in these cases.
-                self.must_clean_ion_tag = True
-                self.log_change("set must_clean_ion_tag", "must_clean_ion_tag",
-                                False, self.must_clean_ion_tag, False)
-                pass
-
         if 'noun' in original_tags_list:
-            ALLOWED_NAME_TAGS = ['common-gender', 'neuter-gender']
             # must have information about gender
-            if not ('common-gender' in original_tags_list
-                    or 'neuter-gender' in original_tags_list):
+            if not any(filter(lambda tag: tag in self.tags,
+                              ALLOWED_NOUN_TAGS)):
                 self.must_get_gender = True
                 self.log_change("set must_get_gender", "must_get_gender",
                                 False, self.must_get_gender, False)
+        if self.translation == '':
+            self.must_get_definition = True
+            self.log_change("set must_get_definition", "must_get_definition",
+                            False, self.must_get_definition, False)
 
     def normalize_lowercase(self):
         original = self.term
@@ -175,23 +195,41 @@ class NormalizedLuteEntry(LuteEntry):
 
     def fix_logged_problems(self):
         if self.must_get_part_of_speech:
-            # TODO later this will be shielded by an API call
-            categories = get_word_definition(self.term, "Danish")
-            if categories:
-                self.tags += ", ".join(list(map(lambda cat: cat["type"],
-                                                categories)))
-                # TODO 'conjugation' should be removed in this case
-                # TODO create parent entry if there is none
-                self.parent += ", ".join(list(map(lambda cat: cat["parent"],
-                                                filter(lambda cat: 'parent' in cat,
-                                                       categories))))
-                part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
-                                            self.normalization_log))
-                # NOTE I don't like this — mutability is iffy. Should be a proper copy.
-                new_log = part_of_speech_log
-                new_log["fixed"] = True
-                self.normalization_log.remove(part_of_speech_log) 
-                self.normalization_log.append(new_log)
+            if len(self.term.split()) > 1:
+                logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
+                self.tags += ", ".join(self.tags.split() + ["is-compound-term"])
+            else:
+                # TODO later this will be shielded by an API call
+                try:
+                    categories = get_word_definition(self.term, "Danish")
+                    if categories:
+                        self.tags += ", ".join(list(map(lambda cat: cat["type"],
+                                                        categories)))
+                        # TODO 'conjugation' should be removed in this case
+                        # TODO create parent entry if there is none
+                        self.parent += ", ".join(list(map(lambda cat: cat["parent"],
+                                                        filter(lambda cat: 'parent' in cat,
+                                                               categories))))
+                        part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
+                                                    self.normalization_log))
+                        # NOTE I don't like this — mutability is iffy. Should be a proper copy.
+                        new_log = part_of_speech_log
+                        new_log["fixed"] = True
+                        self.normalization_log.remove(part_of_speech_log) 
+                        self.normalization_log.append(new_log)
+                        self.must_get_part_of_speech = False
+                except Exception as e:
+                    logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
+
+    
+    def check_eligibility_for_final_tag(self):
+        return not (
+            self.must_get_part_of_speech or
+            self.must_get_gender or
+            self.must_get_parent or
+            self.must_clean_ion_tag or
+            self.must_get_definition
+            ) 
 
 
 class LuteTableEntry(Base):
@@ -226,8 +264,7 @@ class LuteTableEntry(Base):
         )
 
     def __repr__(self):
-        return (f"term: {self.term} | translation: {self.translation}\n" +
-                f"parent: {self.parent}")
+        return (f"term: {self.term} | translation: {self.translation} | parent: {self.parent}")
 
 
 # NOTE this might not be needed after all

@@ -1,7 +1,58 @@
 import pytest
 from datetime import datetime
 from typing import List, Dict
-from db.objects import LuteEntry, NormalizedLuteEntry, LuteTableEntry
+from db.objects import (
+        LuteEntry,
+        NormalizedLuteEntry,
+        LuteTableEntry
+        )
+# from apis.lute_terms_db import (
+        # lute_term_is_complete
+        # )
+
+# def test_parent_term_is_complete():
+    # complete_term = LuteEntry(
+            # term="ung",
+            # translation="young",
+            # parent='',
+            # language="Danish",
+            # tags='adjective',
+            # status="W",
+            # added='',
+            # link_status='',
+            # pronunciation=''
+            # )
+    # assert lute_term_is_complete(complete_term)
+
+# # NOTE this is a declension without parent
+# def test_child_term_is_not_complete():
+    # incomplete_term = LuteEntry(
+            # term="ungt",
+            # translation="young",
+            # parent='',
+            # language="Danish",
+            # tags='adjective, declension',
+            # status="W",
+            # added='',
+            # link_status='',
+            # pronunciation=''
+            # )
+    # assert not lute_term_is_complete(incomplete_term)
+
+# # NOTE this is a declension with parent
+# def test_child_term_is_complete():
+    # complete_term = LuteEntry(
+            # term="ungt",
+            # translation="young",
+            # parent='ung',
+            # language="Danish",
+            # tags='adjective, declension',
+            # status="W",
+            # added='',
+            # link_status='',
+            # pronunciation=''
+            # )
+    # assert lute_term_is_complete(complete_term)
 
 
 def test_normalize_uppercase_term():
@@ -56,7 +107,6 @@ def test_set_untagged_word_as_root_verb():
     assert normalized.parent == "begynde"
     assert normalized.tags == "conjugation"
 
-
 def test_set_untagged_word_as_something():
     original = LuteEntry(
         term="engang",
@@ -87,7 +137,6 @@ def test_set_untagged_word_as_something():
     assert normalized.parent == ""
     assert normalized.tags == "adverb, conjunction"
 
-
 def test_set_word_with_parent_and_verb_tag_as_conjugation():
     original = LuteEntry(
         term="besluttede",
@@ -106,7 +155,6 @@ def test_set_word_with_parent_and_verb_tag_as_conjugation():
     
     # Check normalization log
     assert len(normalized.normalization_log) == 0
-
 
 def test_removes_unnecessary_tags():
     original = LuteEntry(

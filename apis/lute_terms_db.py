@@ -5,7 +5,12 @@ from db.objects import (
         LuteEntry,
         LuteTableEntry,
         NormalizedLuteEntry,
-        convert_to_normalized_lute_entry
+        convert_to_normalized_lute_entry,
+        PARENT_TAGS,
+        CHILD_TAGS,
+        TAGS_TO_SUPPRESS,
+        ANKIGARDEN_WORKING_TAG,
+        ANKIGARDEN_FINAL_TAG
         )
 import json
 import csv
@@ -20,7 +25,10 @@ from sqlalchemy.engine import Engine, create_engine
 import shutil
 from datetime import datetime
 import sqlite3
+from functools import reduce
 from apis.anki_database import retrieve_matching_flashcard_id_for_lute_entry
+
+
 
 
 ## DATABASE HANDLING
@@ -71,13 +79,9 @@ def save_lute_entries_to_db(lute_entries: List[LuteEntry], db_session: Session) 
 
 
 def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
-    ANKIGARDEN_WORKING_TAG = "ankigarden-needs-work"
-    ANKIGARDEN_FINAL_TAG = "ankigarden-term"
     session, engine = create_connection_to_database(db_path)
-    
     try:
         parsed_entries = parse_lute_export_from_file(lute_csv_path)
-        # creates the base LuteEntry object
         lute_entries = [LuteEntry.from_dict(entry)
                         for entry in parsed_entries]
         # NOTE what happens below is its own routine and should be refactored
@@ -88,6 +92,7 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
             if ANKIGARDEN_FINAL_TAG in lute_entry.tags:
                 logger.info(f"term {normalized_entry.term} has already been imported!")
                 continue
+
             # NOTE 10/01/24: the normalisation happens upon object creation;
             # this might not be good practice
             normalized_entry = NormalizedLuteEntry.from_lute_entry(lute_entry)
@@ -107,20 +112,26 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
             elif len(same_term_query) == 1:
                 logger.info(f"term {normalized_entry.term} matches another term in database!")
             elif len(same_timestamp_query) > 1:
-                logger.info("multiple timestamp query results is not yet handled!")
+                logger.warning("multiple timestamp query results is not yet handled!")
+                logger.debug(len(same_timestamp_query), lute_entry.term)
             elif len(same_timestamp_query) == 1:
-                logger.info("exact timestamp query result: is this a duplicate term?")
+                logger.warning("exact timestamp query result: is this an unhandled parent/child term?")
             else:
-                if normalized_entry.tags != '':
-                    new_tags = ", ".join(normalized_entry.tags.split(", ") + [ANKIGARDEN_WORKING_TAG])
+                # checks whether to apply ANKIGARDEN_WORKING_TAG:
+                # NOTE there was no work done; just small normalisations
+                # Wiktionary queries, for example, will trigger a flag.
+                if not normalized_entry.check_eligibility_for_final_tag():
+                    if normalized_entry.tags != '':
+                        new_tags = ", ".join(normalized_entry.tags.split(", ") + [ANKIGARDEN_WORKING_TAG])
+                    else:
+                        new_tags = ANKIGARDEN_WORKING_TAG
                 else:
-                    new_tags = ANKIGARDEN_WORKING_TAG
+                    new_tags = ", ".join(normalized_entry.tags.split(", ") + [ANKIGARDEN_FINAL_TAG])
                 normalized_entry.tags = new_tags
                 new_table_entry = LuteTableEntry.from_lute_entry(normalized_entry)
                 session.add(new_table_entry)
                 logger.info(f"new term {new_table_entry} added to database")
                 new_entry_count += 1
-
         session.commit()
         print(f"Successfully saved {new_entry_count} entries to the database.")
     

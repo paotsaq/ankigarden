@@ -261,6 +261,7 @@ def db_session():
     Base.metadata.drop_all(engine)
 
 
+# NOTE this is repeated on the `term` field: it's the same word
 def test_repeated_entry_will_not_add_to_database(db_session):
     lute_entry = create_sample_lute_entry()
     table_entry = LuteTableEntry.from_lute_entry(lute_entry)
@@ -268,16 +269,10 @@ def test_repeated_entry_will_not_add_to_database(db_session):
     db_session.commit()
     assert db_session.query(LuteTableEntry).all().count() == 1
     
-    another_lute_entry = create_sample_lute_entry()
-    another_table_entry = LuteTableEntry.from_lute_entry(another_lute_entry)
-    db_session.add(another_table_entry)
+    equal_lute_entry = create_sample_lute_entry()
+    equal_table_entry = LuteTableEntry.from_lute_entry(equal_lute_entry)
+    db_session.add(equal_table_entry)
     db_session.commit()
-    assert db_session.query(LuteTableEntry).all().count() == 1
-    
-    very_similar_lute_entry = create_sample_lute_entry()
-    very_similar_lute_entry.term = "appel"
-    very_similar_table_entry = LuteTableEntry.from_lute_entry(very_similar_lute_entry)
-    # Query and assert
     assert db_session.query(LuteTableEntry).all().count() == 1
 
 
@@ -296,3 +291,19 @@ def test_can_update_lute_table_entry(db_session):
     updated_entry = db_session.query(LuteTableEntry).first()
     assert updated_entry.term == "apple"
     assert updated_entry.translation == "another spelling for æble"
+
+
+# # NOTE this is repeated on the `added` field;
+# # it's not the same word, but...
+# def test_same_added_timestamp_will_not_add_to_database(db_session):
+    # lute_entry = create_sample_lute_entry()
+    # table_entry = LuteTableEntry.from_lute_entry(lute_entry)
+    # db_session.add(table_entry)
+    # db_session.commit()
+    # assert db_session.query(LuteTableEntry).all().count() == 1
+    
+    # very_similar_lute_entry = create_sample_lute_entry()
+    # very_similar_lute_entry.term = "appel"
+    # very_similar_table_entry = LuteTableEntry.from_lute_entry(very_similar_lute_entry)
+    # # Query and assert
+    # assert db_session.query(LuteTableEntry).all().count() == 1
