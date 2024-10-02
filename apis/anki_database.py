@@ -29,7 +29,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.engine import Engine, create_engine
 
 
-# NOTE Lute import should not be here.
+# TODO Lute related stuff should not be here.
 ### LUTE FILE IMPORT
 
 TERMS_KEYS = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
@@ -54,7 +54,6 @@ def create_flashcard_from_lute_entry(lute_entry: LuteEntry) -> Flashcard:
     )
 
 ### ANKI CONNECT
-
 
 def send_request_to_anki(action: str, params: dict = None) -> bool | dict:
     payload = {"action": action,
@@ -97,12 +96,15 @@ def move_audio_files_to_anki_mediadir(fcs: list[Flashcard]) -> None:
                     AUDIOS_ANKI_DIR + fc.audio_filename)
 
 
-def show_card_info_with_id(note_ids: List[int]) -> None:
+def show_card_info_with_id(note_ids: List[int]) -> dict | bool:
     res = send_request_to_anki("notesInfo",
                          params={"notes": note_ids})
+    if not res:
+        return False
     return res 
 
-##### ANKI FLASHCARD MATCHING
+
+#### ANKI FLASHCARD MATCHING
 
 def find_exact_match_in_one_field(
         lute_entry: NormalizedLuteEntry,
@@ -120,6 +122,7 @@ def find_exact_match_in_one_field(
     params = {"query": query}
     query_result = send_request_to_anki(action, params)
     return query_result
+
 
 def find_exact_match_in_both_fields(
         lute_entry: NormalizedLuteEntry,
@@ -145,31 +148,22 @@ def find_exact_match_in_both_fields(
     return []
 
 
-def find_partial_match_in_any_field(
+def find_partial_match_in_one_field(
         lute_entry: NormalizedLuteEntry,
-        # TODO change these default value
-        deck: str = "alex-danish",
-        front_field_name: str = "source",
-        back_field_name: str = "target",
+        deck: str,
+        field_name: str,
+        query_on_term: bool = True
         ) -> List[Dict]:
-    """checks for exact matches on _either_ source or target fields"""
+    """checks for partial matches on one field"""
     action = "findNotes"
     deck_query = f'"deck:{deck}"'
-
-    back_query = " ".join([deck_query,
-                      f'"{back_field_name}:*{lute_entry.term}*"',
+    to_query = lute_entry.term if query_on_term else lute_entry.translation
+    query = " ".join([deck_query,
+                      f'"{field_name}:*{to_query}*"',
                       ])
-    params = {"query": back_query}
-    back_query_result = send_request_to_anki(action, params)
-    if lute_entry.translation != '':
-        front_query = " ".join([deck_query,
-                          f'"{front_field_name}:*{lute_entry.translation}*"',
-                          ])
-        params = {"query": front_query}
-        front_query_result = send_request_to_anki(action, params)
-        return back_query_result + front_query_result
-    else:
-        return back_query_result
+    params = {"query": query}
+    query_result = send_request_to_anki(action, params)
+    return query_result
 
 
 def find_all_matches_in_database(
@@ -182,38 +176,36 @@ def find_all_matches_in_database(
         "exact_matches_both_fields": [],
         "exact_match_front_field": [],
         "exact_match_back_field": [],
-        "partial_match_any_field": [],
+        "partial_match_back_field": [],
     }
 
-    # Exact match on both fields
     exact_both = find_exact_match_in_both_fields(lute_entry, deck)
-    exact_any_front = find_exact_match_in_one_field(
+    exact_front = find_exact_match_in_one_field(
             lute_entry,
             deck,
             front_field_name,
             False)
-    exact_any_back = find_exact_match_in_one_field(
+    exact_back = find_exact_match_in_one_field(
             lute_entry,
             deck,
             back_field_name,
             True)
-    partial_any = find_partial_match_in_any_field(lute_entry, deck)
+    partial_back = find_partial_match_in_one_field(
+            lute_entry,
+            deck,
+            back_field_name,
+            True)
     match_results["exact_matches_both_fields"] += exact_both
-    new_front_matches = [match for match in exact_any_front
+    exact_front_matches = [match for match in exact_front
+                           if match not in exact_both]
+    match_results["exact_match_front_field"] += exact_front_matches
+    exact_back_matches = [match for match in exact_back
                        if match not in exact_both]
-    match_results["exact_match_front_field"] += new_front_matches
-    new_back_matches = [match for match in exact_any_back
-                       if match not in exact_both]
-    match_results["exact_match_back_field"] += new_back_matches
-    new_partial_matches = [match for match in partial_any
-                           if (match not in exact_any_front and
-                               match not in exact_any_back)]
-    match_results["partial_match_any_field"] = new_partial_matches
-
-    # # Fuzzy match (for similar spellings or synonyms)
-    # fuzzy_matches = find_fuzzy_matches(lute_entry)
-    # match_results["fuzzy_matches"].extend(fuzzy_matches)
-
+    match_results["exact_match_back_field"] += exact_back_matches
+    partial_back_matches = [match for match in partial_back
+                           if (match not in exact_front_matches and
+                               match not in exact_back_matches)]
+    match_results["partial_match_back_field"] = partial_back_matches
     return match_results
 
 
@@ -223,32 +215,38 @@ def retrieve_matching_flashcard_id_for_lute_entry(
         session: Session,
         lute_entry: LuteTableEntry,
         deck: str
-        ) -> int | None:
+        ) -> int | bool:
     results = find_all_matches_in_database(lute_entry, deck)
+    if not results:
+        return False
     # NOTE this is very unlikely, but in any case a clear match is good to handle
     if len(results["exact_matches_both_fields"]) == 1:
-        print("got exact match on both fields for ", lute_entry)
+        logger.info("found exact match on both fields for {lute_entry}")
         anki_note_id = results["exact_matches_both_fields"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
     # NOTE on my current setup, I would match if both back sides 
     # (the Danish term) is the same
     elif len(results["exact_match_back_field"]) == 1:
-        print("got exact match on back field for ", lute_entry)
+        logger.info(f"got exact match on back field for {lute_entry}")
         anki_note_id = results["exact_match_back_field"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
-        print(show_card_info_with_id(results["exact_match_any_field"]))
     # NOTE this might happen on synonyms; might as well have it too
     elif len(results["exact_match_front_field"]) == 1:
-        print("got exact match on front field for ", lute_entry)
+        logger.info("got exact match on front field for {lute_entry}")
         anki_note_id = results["exact_match_front_field"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
-    elif len(results["partial_match_any_field"]) > 0:
-        print("got partial match on one field for ", lute_entry)
-    # else:
-        # print("No match found for", lute_entry)
+    elif len(results["partial_match_back_field"]) > 1:
+        logger.info(f"got {len(results['partial_match_back_field'])} partial match(es) on one field for {lute_entry}")
+    elif len(results["partial_match_back_field"]) == 1:
+        logger.info(f"got one partial match on front field for {lute_entry}!")
+        card = show_card_info_with_id(results["partial_match_back_field"])[0]
+        if "source" in card["fields"]:
+            logger.info(f'{ card["fields"]["source"] }, { card["fields"]["target"] }')
+    elif results["partial_match_back_field"] == 0:
+        pass
     return None
 
 
@@ -257,15 +255,13 @@ def update_lute_entry_with_anki_id(session: Session, lute_entry: LuteTableEntry,
         db_entry = session.query(LuteTableEntry).filter_by(
             id=lute_entry.id,
         ).first()
-
         if db_entry:
             db_entry.anki_note_id = anki_note_id
             db_entry.last_synced = datetime.now()
             session.commit()
-            print(f"Updated LuteTableEntry for term '{lute_entry.term}' with Anki note ID: {anki_note_id}")
+            logger.info(f"Updated LuteTableEntry for term '{lute_entry.term}' with Anki note ID: {anki_note_id}")
         else:
             print(f"No matching LuteTableEntry found for term '{lute_entry.term}'")
-
     except Exception as e:
         print(f"Error updating LuteTableEntry: {str(e)}")
         session.rollback()
