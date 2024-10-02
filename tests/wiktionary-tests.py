@@ -384,6 +384,15 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                      'type': 'adverb'},
                                     {'definition': ['at some unspecified time in the past when...'],
                                      'type': 'conjunction'}])
+
+    def test_can_parse_name_without_gender_information(self):
+        word = "drikke"
+        language = "Danish"
+        res_dict = get_word_definition(word, language)
+        self.assertEqual(res_dict,
+                         [{'etymology': 'From Old Danish drikkæ, (Western) Old Norse drekka, from Proto-Germanic *drinkaną, cognate with Swedish dricka, English drink, German trinken.', 'type': 'verb', 'conjugation': {'imperative': 'drik'}, 'definition': ['drink', 'have (to partake of a drink)']},
+                          {'etymology': 'From Old Danish drickæ, from the verb.', 'type': 'noun', 'gender': None, 'definition': ['(rare) drink']},
+                          {'etymology': 'See the etymology of the corresponding lemma form.', 'type': 'noun', 'gender': 'c', 'definition': ['indefinite plural of drik']}])
                          
 
     # NOTE still not sure whether it is necessary to check the declension table

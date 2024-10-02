@@ -50,6 +50,8 @@ def fetch_wiktionary_page(page_title: str, target_lang: str = "Danish") -> Beaut
         else:
             logger.error(f"Failed to fetch page content. Status code: {response.status_code}")
             return False
+    except KeyError:
+        logger.error(f"Could not retrieve page for {page_title}. Maybe it doesn't exist?")
     except requests.exceptions.ConnectionError:
         logger.error("Connection error to Wiktionary API. Am I connected to the internet?")
         return False
@@ -144,7 +146,7 @@ def get_word_categories_from_subsections(
         categories: list[dict],
         current_entry: dict
         ) -> list[dict]:
-    if subsections == []:
+    if not subsections:
         return categories
     head = subsections[0]
     # print(f"categories: {categories}; current_entry: {current_entry}")
@@ -159,7 +161,9 @@ def get_word_categories_from_subsections(
             # TODO some of this code is rather redundant
             # (type can certainly be got before the if/else branches)
             if subsection == "Noun":
-                gender_info = retrieve_content_from_tag(subsections[1].find("span", "gender"))
+                gender_section = subsections[1].find("span", "gender")
+                gender_info = (None if not gender_section else
+                               retrieve_content_from_tag(gender_section))
                 definition = retrieve_definition_from_tag(subsections[2]).split("\n")
                 new_info = {
                         "type": subsection.lower(),
