@@ -43,7 +43,7 @@ def normalize_lute_terms_in_database(database_path: str):
             except Exception as e:
                 logger.error(f"An error occurred during the normalization process: {str(e)}")
         session.commit()
-        logger.info("Finished normalisation process. Updated {updated} entries.")
+        logger.info(f"Finished normalisation process. Updated {updated} entries.")
     except Exception as e:
         logger.error(f"An unexpected error occurred during the matching process: {str(e)}")
         session.rollback()

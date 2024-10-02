@@ -61,7 +61,7 @@ def test_normalize_uppercase_term():
         parent="",
         translation="there / that / who",
         language="Danish",
-        tags="adverb, pronoun",
+        tags="adverb pronoun",
         added=datetime.fromisoformat("2024-08-16T12:33:56"),
         status="W",
         link_status="",
@@ -82,7 +82,7 @@ def test_set_untagged_word_as_root_verb():
     original = LuteEntry(
         term="begyndte",
         parent="",
-        translation="",
+        translation="to begin",
         language="Danish",
         tags="",
         added=datetime.fromisoformat("2024-09-11T09:32:16"),
@@ -135,7 +135,7 @@ def test_set_untagged_word_as_something():
 
     assert normalized.normalization_log[0]["fixed"] == True
     assert normalized.parent == ""
-    assert normalized.tags == "adverb, conjunction"
+    assert normalized.tags == "adverb conjunction"
 
 def test_set_word_with_parent_and_verb_tag_as_conjugation():
     original = LuteEntry(
@@ -162,7 +162,7 @@ def test_removes_unnecessary_tags():
         parent="",
         translation="or",
         language="Danish",
-        tags="conjunction, vocabulary",
+        tags="conjunction vocabulary",
         added=datetime.fromisoformat("2024-08-21T22:57:35"),
         status="W",
         link_status="",
@@ -177,5 +177,5 @@ def test_removes_unnecessary_tags():
     
     assert normalized.normalization_log[0]["method"] == "removed tags"
     assert normalized.normalization_log[0]["field"] == "tags"
-    assert normalized.normalization_log[0]["original"] == 'conjunction, vocabulary'
+    assert normalized.normalization_log[0]["original"] == 'conjunction vocabulary'
     assert normalized.normalization_log[0]["normalized"] == 'conjunction'

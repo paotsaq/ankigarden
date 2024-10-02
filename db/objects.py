@@ -103,7 +103,7 @@ class NormalizedLuteEntry(LuteEntry):
             parent=entry.parent,
             translation=entry.translation,
             language=entry.language,
-            tags=entry.tags,
+            tags=entry.tags.split(", "),
             added=entry.added,
             status=entry.status,
             link_status=entry.link_status,
@@ -126,7 +126,7 @@ class NormalizedLuteEntry(LuteEntry):
 
     def normalize_tags(self):
         original = self.tags
-        original_tags_list = original.split(", ")
+        original_tags_list = original.split()
 
         # ensure information on part of speech (parent tag)
         any_part_of_speech = any(filter(lambda tag: tag in self.tags,
@@ -150,7 +150,7 @@ class NormalizedLuteEntry(LuteEntry):
 
         # lowercase tags
         lower_cased_tags = list(map(lambda tag: tag.lower(),
-                                    self.tags.split(", ")))
+                                    original_tags_list))
 
         if lower_cased_tags != original_tags_list:
             self.tags = " ".join(lower_cased_tags)
@@ -197,17 +197,17 @@ class NormalizedLuteEntry(LuteEntry):
         if self.must_get_part_of_speech:
             if len(self.term.split()) > 1:
                 logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
-                self.tags += ", ".join(self.tags.split() + ["is-compound-term"])
+                self.tags += " ".join(self.tags.split() + ["is-compound-term"])
             else:
                 # TODO later this will be shielded by an API call
                 try:
                     categories = get_word_definition(self.term, "Danish")
                     if categories:
-                        self.tags += ", ".join(list(map(lambda cat: cat["type"],
+                        self.tags += " ".join(list(map(lambda cat: cat["type"],
                                                         categories)))
                         # TODO 'conjugation' should be removed in this case
                         # TODO create parent entry if there is none
-                        self.parent += ", ".join(list(map(lambda cat: cat["parent"],
+                        self.parent += " ".join(list(map(lambda cat: cat["parent"],
                                                         filter(lambda cat: 'parent' in cat,
                                                                categories))))
                         part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",

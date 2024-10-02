@@ -46,9 +46,12 @@ def close_connection_to_database(session: Session, engine: Engine) -> None:
 ### LUTE TERMS FILE IMPORT
 
 # NOTE contains the definition of the lute CSV header
+# will also split the commas on export if needed
 def parse_lute_term_output(line: list) -> Dict[str, str]:
     TERMS_KEYS: List[str] = ['term', 'parent', 'translation', 'language', 'tags', 'added', 'status', 'link_status', 'pronunciation']
-    return dict(zip(TERMS_KEYS, line))
+    res = dict(zip(TERMS_KEYS, line))
+    res["tags"] = " ".join(res["tags"].split(", "))
+    return res
 
 
 def parse_lute_export(lute_export: csv.reader) -> List[Dict[str, str]]:
@@ -122,11 +125,11 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
                 # Wiktionary queries, for example, will trigger a flag.
                 if not normalized_entry.check_eligibility_for_final_tag():
                     if normalized_entry.tags != '':
-                        new_tags = ", ".join(normalized_entry.tags.split(", ") + [ANKIGARDEN_WORKING_TAG])
+                        new_tags = " ".join(normalized_entry.tags.split() + [ANKIGARDEN_WORKING_TAG])
                     else:
                         new_tags = ANKIGARDEN_WORKING_TAG
                 else:
-                    new_tags = ", ".join(normalized_entry.tags.split(", ") + [ANKIGARDEN_FINAL_TAG])
+                    new_tags = " ".join(normalized_entry.tags.split() + [ANKIGARDEN_FINAL_TAG])
                 normalized_entry.tags = new_tags
                 new_table_entry = LuteTableEntry.from_lute_entry(normalized_entry)
                 session.add(new_table_entry)

@@ -158,7 +158,7 @@ kone,,wife / woman,Danish,"common-noun, noun",2024-08-17 16:48:46,1,,"""
     assert isinstance(lute_entries[0], LuteEntry)
     assert lute_entries[1].translation == 'to smell'
     assert lute_entries[2].language == 'Danish'
-    assert lute_entries[3].tags == 'common-noun, noun'
+    assert lute_entries[3].tags == 'common-noun noun'
 
 
 def test_create_lute_table_entry_from_lute_entry():
@@ -184,7 +184,7 @@ def test_create_lute_table_entry_from_lute_entry():
     assert lute_table_entry.language == lute_entry.language
     assert lute_table_entry.tags == 'adjective'
     assert lute_table_entry.added == lute_entry.added
-    assert lute_table_entry.status == "1" 
+    assert lute_table_entry.status == 1 
     assert lute_table_entry.link_status == lute_entry.link_status
     assert lute_table_entry.pronunciation == lute_entry.pronunciation
 
@@ -267,13 +267,13 @@ def test_repeated_entry_will_not_add_to_database(db_session):
     table_entry = LuteTableEntry.from_lute_entry(lute_entry)
     db_session.add(table_entry)
     db_session.commit()
-    assert db_session.query(LuteTableEntry).all().count() == 1
+    assert len(db_session.query(LuteTableEntry).all()) == 1
     
     equal_lute_entry = create_sample_lute_entry()
     equal_table_entry = LuteTableEntry.from_lute_entry(equal_lute_entry)
     db_session.add(equal_table_entry)
     db_session.commit()
-    assert db_session.query(LuteTableEntry).all().count() == 1
+    assert len(db_session.query(LuteTableEntry).all()) == 1
 
 
 def test_can_update_lute_table_entry(db_session):
