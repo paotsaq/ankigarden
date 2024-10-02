@@ -29,7 +29,7 @@ class LuteEntry:
     parent: str
     translation: str
     language: str
-    tags: list[str]
+    tags: str
     added: datetime
     status: str
     link_status: str
@@ -73,6 +73,24 @@ class NormalizedLuteEntry(LuteEntry):
     must_clean_ion_tag: bool = False
     normalization_log: List[Dict[str, str]] = field(default_factory=list)
 
+    @classmethod
+    def from_lute_entry(cls, entry: LuteEntry):
+        normalized = cls(
+            term=entry.term,
+            parent=entry.parent,
+            translation=entry.translation,
+            language=entry.language,
+            tags=entry.tags,
+            added=entry.added,
+            status=entry.status,
+            link_status=entry.link_status,
+            pronunciation=entry.pronunciation,
+        )
+        # NOTE I'm not sure this is good practice;
+        # it should not be taken for granted that normalisation happens at creation
+        normalized.normalize()
+        return normalized
+
     def log_change(self, method: str, field: str, original: str, normalized: str, fixed: bool = True):
         self.normalization_log.append({
             "method": method,
@@ -83,7 +101,8 @@ class NormalizedLuteEntry(LuteEntry):
         })
 
     def normalize_tags(self):
-        ALLOWED_TAGS = ['noun', 'verb', 'declension', 'conjugation']
+        PARENT_TAGS = ['noun', 'verb', 'proper-noun', 'building']
+        CHILD_TAGS = ['declension', 'conjugation']
         TAGS_TO_SUPPRESS = ['vocabulary']
         original = self.tags
         original_tags_list = original.split(", ")
@@ -91,7 +110,8 @@ class NormalizedLuteEntry(LuteEntry):
         # no information about a given term
         # these might be flashcarded already, too
         # TODO separate into `parent` case?
-        if original_tags_list == ['']:
+        if (not(any(map(lambda tag: tag in self.tags, CHILD_TAGS + PARENT_TAGS)))
+            and not self.parent):
             self.must_get_part_of_speech = True
             self.log_change("set must_get_part_of_speech", "must_get_part_of_speech",
                             False, self.must_get_part_of_speech, False)
@@ -174,23 +194,6 @@ class NormalizedLuteEntry(LuteEntry):
                 self.normalization_log.append(new_log)
 
 
-    @classmethod
-    def from_lute_entry(cls, entry: LuteEntry):
-        normalized = cls(
-            term=entry.term,
-            parent=entry.parent,
-            translation=entry.translation,
-            language=entry.language,
-            tags=entry.tags,
-            added=entry.added,
-            status=entry.status,
-            link_status=entry.link_status,
-            pronunciation=entry.pronunciation,
-        )
-        normalized.normalize()
-        return normalized
-
-
 class LuteTableEntry(Base):
     __tablename__ = 'lute_terms'
 
@@ -208,7 +211,6 @@ class LuteTableEntry(Base):
     last_synced = Column(DateTime)
 
 
-    # this will be done from NormalizedLuteEntry, actually
     @classmethod
     def from_lute_entry(cls, lute_entry: NormalizedLuteEntry):
         return cls(
@@ -226,6 +228,24 @@ class LuteTableEntry(Base):
     def __repr__(self):
         return (f"term: {self.term} | translation: {self.translation}\n" +
                 f"parent: {self.parent}")
+
+
+# NOTE this might not be needed after all
+def convert_to_normalized_lute_entry(table_entry: LuteTableEntry) -> NormalizedLuteEntry:
+    lute_entry = LuteEntry(
+        term=table_entry.term,
+        parent=table_entry.parent,
+        translation=table_entry.translation,
+        language=table_entry.language,
+        tags=table_entry.tags,
+        added=table_entry.added,
+        status=table_entry.status or '',
+        link_status=table_entry.link_status,
+        pronunciation=table_entry.pronunciation
+    )
+    
+    normalized_entry = NormalizedLuteEntry.from_lute_entry(lute_entry)
+    return normalized_entry
 
 
 class Flashcard:
