@@ -42,6 +42,11 @@ ALLOWED_NOUN_TAGS = [
         'common-gender',
         'neuter-gender'
         ]
+ALLOWED_VERB_TAGS = [
+        'group-I',
+        'group-II',
+        'irregular'
+        ]
 TAGS_TO_SUPPRESS = ['vocabulary']
 ANKIGARDEN_WORKING_TAG = "ankigarden-needs-work"
 ANKIGARDEN_FINAL_TAG = "ankigarden-term"
@@ -90,9 +95,10 @@ class LuteEntry:
 # NOTE this is still very hardcoded for Danish!
 class NormalizedLuteEntry(LuteEntry):
     must_get_part_of_speech: bool = False
-    must_get_gender: bool = False
     must_get_parent: bool = False
     must_get_definition: bool = False
+    must_get_gender: bool = False
+    must_get_conjugation_pattern: bool = False
     must_clean_ion_tag: bool = False
     normalization_log: List[Dict[str, str]] = field(default_factory=list)
 
@@ -128,6 +134,62 @@ class NormalizedLuteEntry(LuteEntry):
         original = self.tags
         original_tags_list = original.split()
 
+        # lowercase tags
+        lower_cased_tags = list(map(lambda tag: tag.lower(),
+                                    original_tags_list))
+
+        if lower_cased_tags != original_tags_list:
+            self.tags = " ".join(lower_cased_tags)
+            self.log_change("lowercased tags", "tags", original, self.tags)
+
+        # removes unnecessary tags
+        filtered = list(filter(lambda tag: tag not in TAGS_TO_SUPPRESS,
+                       original_tags_list))
+
+        if filtered != original_tags_list:
+            self.tags = " ".join(filtered)
+            self.log_change("removed tags", "tags", original, self.tags)
+
+    def normalize_lowercase(self):
+        original = self.term
+        self.term = self.term.lower()
+        if original != self.term:
+            self.log_change("lowercased term", "term", original, self.term)
+
+    def normalize_remove_extra_spaces(self):
+        original = self.term
+        self.term = ' '.join(self.term.split())
+        if original != self.term:
+            self.log_change("removed extra spaces", "term", original, self.term)
+
+    def normalize_get_translation(self):
+        if self.translation == '':
+            self.must_get_definition = True
+            self.log_change("set must_get_definition", "must_get_definition",
+                            False, self.must_get_definition, False)
+
+    # NOTE determine specifics about the term role
+    def normalize_term_part_of_speech(self):
+        if 'noun' in self.tags.split():
+            # noun must have information about gender
+            if not any(filter(lambda tag: tag in self.tags,
+                              ALLOWED_NOUN_TAGS)):
+                self.must_get_gender = True
+                self.log_change("set must_get_gender", "must_get_gender",
+                                False, self.must_get_gender, False)
+        elif 'verb' in self.tags.split():
+            # verb must have conjugation pattern tag
+            if not any(filter(lambda tag: tag in self.tags,
+                              ALLOWED_VERB_TAGS)):
+                self.must_get_conjugation_pattern = True
+                self.log_change("set must_get_conjugation_pattern", "must_get_conjugation_pattern",
+                                False, self.must_get_conjugation_pattern, False)
+
+
+    # NOTE determine whether it is a parent or a child
+    # (noun, verb, etc. are parents; declensions or conjugations of
+    # these terms are children)
+    def normalize_parent_or_child(self):
         # ensure information on part of speech (parent tag)
         any_part_of_speech = any(filter(lambda tag: tag in self.tags,
                                         PARENT_TAGS))
@@ -148,89 +210,55 @@ class NormalizedLuteEntry(LuteEntry):
             self.log_change("set must_get_part_of_speech", "must_get_part_of_speech",
                             False, self.must_get_part_of_speech, False)
 
-        # lowercase tags
-        lower_cased_tags = list(map(lambda tag: tag.lower(),
-                                    original_tags_list))
-
-        if lower_cased_tags != original_tags_list:
-            self.tags = " ".join(lower_cased_tags)
-            self.log_change("lowercased tags", "tags", original, self.tags)
-
-        # removes unnecessary tags
-        filtered = list(filter(lambda tag: tag not in TAGS_TO_SUPPRESS,
-                       original_tags_list))
-
-        if filtered != original_tags_list:
-            self.tags = " ".join(filtered)
-            self.log_change("removed tags", "tags", original, self.tags)
-
-        if 'noun' in original_tags_list:
-            # must have information about gender
-            if not any(filter(lambda tag: tag in self.tags,
-                              ALLOWED_NOUN_TAGS)):
-                self.must_get_gender = True
-                self.log_change("set must_get_gender", "must_get_gender",
-                                False, self.must_get_gender, False)
-        if self.translation == '':
-            self.must_get_definition = True
-            self.log_change("set must_get_definition", "must_get_definition",
-                            False, self.must_get_definition, False)
-
-    def normalize_lowercase(self):
-        original = self.term
-        self.term = self.term.lower()
-        if original != self.term:
-            self.log_change("lowercased term", "term", original, self.term)
-
-    def normalize_remove_extra_spaces(self):
-        original = self.term
-        self.term = ' '.join(self.term.split())
-        if original != self.term:
-            self.log_change("removed extra spaces", "term", original, self.term)
 
     def normalize(self):
         self.normalize_remove_extra_spaces()
         self.normalize_lowercase()
         self.normalize_tags()
+        self.normalize_get_translation()
+        self.normalize_parent_or_child()
+        self.normalize_term_part_of_speech()
+
 
     def fix_logged_problems(self):
-        if self.status == 'W':
-            logger.warning(f"{self.term} seems to be a learned word. Will skip querying and try matching to Anki database.")
-        else:
-            if self.must_get_part_of_speech:
-                if len(self.term.split()) > 1:
-                    logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
-                    self.tags += " ".join(self.tags.split() + ["is-compound-term"])
-                else:
-                    # TODO later this will be shielded by an API call
-                    try:
-                        categories = get_word_definition(self.term, "Danish")
-                        if categories:
-                            self.tags += " ".join(list(map(lambda cat: cat["type"],
-                                                            categories)))
-                            # TODO 'conjugation' should be removed in this case
-                            # TODO create parent entry if there is none
-                            self.parent += " ".join(list(map(lambda cat: cat["parent"],
-                                                            filter(lambda cat: 'parent' in cat,
-                                                                   categories))))
-                            part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
-                                                        self.normalization_log))
-                            # NOTE I don't like this — mutability is iffy. Should be a proper copy.
-                            new_log = part_of_speech_log
-                            new_log["fixed"] = True
-                            self.normalization_log.remove(part_of_speech_log) 
-                            self.normalization_log.append(new_log)
-                            self.must_get_part_of_speech = False
-                    except Exception as e:
-                        logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
+        # if self.status == 'W':
+            # logger.warning(f"{self.term} seems to be a learned word. Will skip querying and try matching to Anki database.")
+        # else:
+        if self.must_get_part_of_speech:
+            if len(self.term.split()) > 1:
+                logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
+                self.tags += " ".join(self.tags.split() + ["is-compound-term"])
+            else:
+                # TODO later this will be shielded by an API call
+                try:
+                    categories = get_word_definition(self.term, "Danish")
+                    if categories:
+                        self.tags += " ".join(list(map(lambda cat: cat["type"],
+                                                        categories)))
+                        # TODO 'conjugation' should be removed in this case
+                        # TODO create parent entry if there is none
+                        self.parent += " ".join(list(map(lambda cat: cat["parent"],
+                                                        filter(lambda cat: 'parent' in cat,
+                                                               categories))))
+                        part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
+                                                    self.normalization_log))
+                        # NOTE I don't like this — mutability is iffy. Should be a proper copy.
+                        new_log = part_of_speech_log
+                        new_log["fixed"] = True
+                        self.normalization_log.remove(part_of_speech_log) 
+                        self.normalization_log.append(new_log)
+                        self.must_get_part_of_speech = False
+                except Exception as e:
+                    logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
     
     def check_eligibility_for_final_tag(self):
         return not (
             self.must_get_part_of_speech or
-            self.must_get_gender or
             self.must_get_parent or
-            self.must_clean_ion_tag or
-            self.must_get_definition
+            self.must_get_gender or
+            self.must_get_definition or
+            self.must_get_conjugation_pattern or
+            self.must_clean_ion_tag
             ) 
 
 

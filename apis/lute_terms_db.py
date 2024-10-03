@@ -120,6 +120,7 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
             elif len(same_timestamp_query) == 1:
                 logger.warning("exact timestamp query result: is this an unhandled parent/child term?")
             else:
+                # TODO this should be under the normalisation process, not here.
                 # checks whether to apply ANKIGARDEN_WORKING_TAG:
                 # NOTE there was no work done; just small normalisations
                 # Wiktionary queries, for example, will trigger a flag.
