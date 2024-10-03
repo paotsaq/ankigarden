@@ -8,9 +8,7 @@ from db.objects import (
         Flashcard
         )
 
-
-def test_flashcard_creation_from_lute_entry_verb():
-    lute_entry = LuteEntry(
+verb_lute_entry = LuteEntry(
         term="beslutte",
         parent="",
         translation="to decide",
@@ -21,20 +19,8 @@ def test_flashcard_creation_from_lute_entry_verb():
         link_status="",
         pronunciation="",
     )
-    
-    flashcard = Flashcard.from_lute_entry(lute_entry)
-    
-    assert flashcard is not None
-    assert flashcard.target == "beslutte"
-    assert flashcard.source == "to decide"
-    assert flashcard.context == ""
-    assert flashcard.tags == "verb"
-    assert flashcard.source_lang == "English"
-    assert flashcard.target_lang == "Danish"
-
-
-def test_flashcard_creation_from_lute_entry_adverb():
-    lute_entry = LuteEntry(
+ 
+adverb_lute_entry = LuteEntry(
         term="engang",
         parent="",
         translation="once",
@@ -45,8 +31,38 @@ def test_flashcard_creation_from_lute_entry_adverb():
         link_status="",
         pronunciation="",
     )
+
+conjunction_lute_entry = LuteEntry(
+        term="eller",
+        parent="",
+        translation="or",
+        language="Danish",
+        tags="conjunction",
+        added="2024-08-21 22:57:35",
+        status="W",
+        link_status="",
+        pronunciation="",
+    )
+
+def test_flashcard_creation_from_lute_entry_verb():
+    flashcard = Flashcard.from_lute_entry(verb_lute_entry)
     
-    flashcard = Flashcard.from_lute_entry(lute_entry)
+    assert flashcard is not None
+    assert flashcard.target == "beslutte"
+    assert flashcard.source == "to decide"
+    assert flashcard.context == ""
+    assert flashcard.tags == "verb"
+    assert flashcard.source_lang == "English"
+    assert flashcard.target_lang == "Danish"
+
+def test_can_generate_audio_for_verb_flashcard():
+    flashcard = Flashcard.from_lute_entry(verb_lute_entry)
+
+    assert True == False
+
+
+def test_flashcard_creation_from_lute_entry_adverb():
+    flashcard = Flashcard.from_lute_entry(adverb_lute_entry)
 
     assert flashcard is not None
     assert flashcard.target == "engang"
@@ -58,19 +74,7 @@ def test_flashcard_creation_from_lute_entry_adverb():
 
 
 def test_flashcard_creation_from_lute_entry_conjunction():
-    lute_entry = LuteEntry(
-        term="eller",
-        parent="",
-        translation="or",
-        language="Danish",
-        tags="conjunction",
-        added="2024-08-21 22:57:35",
-        status="W",
-        link_status="",
-        pronunciation="",
-    )
-    
-    flashcard = Flashcard.from_lute_entry(lute_entry)
+    flashcard = Flashcard.from_lute_entry(conjunction_lute_entry)
     
     assert flashcard is not None
     assert flashcard.target == "eller"
