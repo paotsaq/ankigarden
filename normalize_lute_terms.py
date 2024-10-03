@@ -21,14 +21,14 @@ def normalize_lute_terms_in_database(database_path: str):
         updated = 0
         for entry in unmatched_unnormalized_entries:
             try:
+                # NOTE normalisation is being done upon object creation;
+                # this might not be a good idea
                 normalized_entry = convert_to_normalized_lute_entry(entry)
-                # NOTE this is being done earlier in the process,
-                # upon object creation; might not be a good idea
-                # normalized_entry.normalize()
                 normalized_entry.fix_logged_problems()
+                # NOTE should this be on object?
                 if normalized_entry.check_eligibility_for_final_tag():
-                    new_tags = ", ".join(list(filter(lambda tag: tag != ANKIGARDEN_WORKING_TAG,
-                                                     normalized_entry.tags.split(", "))) + [ANKIGARDEN_FINAL_TAG])
+                    new_tags = " ".join(list(filter(lambda tag: tag != ANKIGARDEN_WORKING_TAG,
+                                                     normalized_entry.tags.split(" "))) + [ANKIGARDEN_FINAL_TAG])
 
                     normalized_entry.tags = new_tags
                     updated_entry = LuteTableEntry.from_lute_entry(normalized_entry)
@@ -43,7 +43,7 @@ def normalize_lute_terms_in_database(database_path: str):
             except Exception as e:
                 logger.error(f"An error occurred during the normalization process: {str(e)}")
         session.commit()
-        logger.info(f"Finished normalisation process. Updated {updated} entries.")
+        logger.info(f"Finished normalisation process. Updated {updated} entries to {ANKIGARDEN_FINAL_TAG}")
     except Exception as e:
         logger.error(f"An unexpected error occurred during the matching process: {str(e)}")
         session.rollback()

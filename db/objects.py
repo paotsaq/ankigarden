@@ -103,7 +103,7 @@ class NormalizedLuteEntry(LuteEntry):
             parent=entry.parent,
             translation=entry.translation,
             language=entry.language,
-            tags=entry.tags.split(", "),
+            tags=entry.tags,
             added=entry.added,
             status=entry.status,
             link_status=entry.link_status,
@@ -194,33 +194,35 @@ class NormalizedLuteEntry(LuteEntry):
         self.normalize_tags()
 
     def fix_logged_problems(self):
-        if self.must_get_part_of_speech:
-            if len(self.term.split()) > 1:
-                logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
-                self.tags += " ".join(self.tags.split() + ["is-compound-term"])
-            else:
-                # TODO later this will be shielded by an API call
-                try:
-                    categories = get_word_definition(self.term, "Danish")
-                    if categories:
-                        self.tags += " ".join(list(map(lambda cat: cat["type"],
-                                                        categories)))
-                        # TODO 'conjugation' should be removed in this case
-                        # TODO create parent entry if there is none
-                        self.parent += " ".join(list(map(lambda cat: cat["parent"],
-                                                        filter(lambda cat: 'parent' in cat,
-                                                               categories))))
-                        part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
-                                                    self.normalization_log))
-                        # NOTE I don't like this — mutability is iffy. Should be a proper copy.
-                        new_log = part_of_speech_log
-                        new_log["fixed"] = True
-                        self.normalization_log.remove(part_of_speech_log) 
-                        self.normalization_log.append(new_log)
-                        self.must_get_part_of_speech = False
-                except Exception as e:
-                    logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
-
+        if self.status == 'W':
+            logger.warning(f"{self.term} seems to be a learned word. Will skip querying and try matching to Anki database.")
+        else:
+            if self.must_get_part_of_speech:
+                if len(self.term.split()) > 1:
+                    logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
+                    self.tags += " ".join(self.tags.split() + ["is-compound-term"])
+                else:
+                    # TODO later this will be shielded by an API call
+                    try:
+                        categories = get_word_definition(self.term, "Danish")
+                        if categories:
+                            self.tags += " ".join(list(map(lambda cat: cat["type"],
+                                                            categories)))
+                            # TODO 'conjugation' should be removed in this case
+                            # TODO create parent entry if there is none
+                            self.parent += " ".join(list(map(lambda cat: cat["parent"],
+                                                            filter(lambda cat: 'parent' in cat,
+                                                                   categories))))
+                            part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
+                                                        self.normalization_log))
+                            # NOTE I don't like this — mutability is iffy. Should be a proper copy.
+                            new_log = part_of_speech_log
+                            new_log["fixed"] = True
+                            self.normalization_log.remove(part_of_speech_log) 
+                            self.normalization_log.append(new_log)
+                            self.must_get_part_of_speech = False
+                    except Exception as e:
+                        logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
     
     def check_eligibility_for_final_tag(self):
         return not (
@@ -334,6 +336,9 @@ class Flashcard:
             )
 
 
+    def generate_target_audio_query(self) -> None:
+        pass
+
     def get_translation(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
         if `invert`, then it reverses the query,
@@ -378,7 +383,7 @@ class Flashcard:
             return
         success, audio_filename = download_foreign_audio(LANG_MAP[self.target_lang]["sot_code"],
                                                          self.target_audio_query,
-                                                         './audios/')
+                                                         AUDIOS_SOURCE_DIR)
         if not success:
             logger.error(f"Did not download audio for {self.__repr__()}!")
             return 
