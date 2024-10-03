@@ -25,14 +25,12 @@ def test_flashcard_creation_from_lute_entry_verb():
     flashcard = Flashcard.from_lute_entry(lute_entry)
     
     assert flashcard is not None
-    assert flashcard.source == "beslutte"
-    assert flashcard.target == "to decide"
+    assert flashcard.target == "beslutte"
+    assert flashcard.source == "to decide"
     assert flashcard.context == ""
     assert flashcard.tags == "verb"
     assert flashcard.source_lang == "English"
     assert flashcard.target_lang == "Danish"
-    assert flashcard.added_lute_timestamp == 1723891866  # This is the timestamp for "2024-08-17 12:51:06"
-    assert flashcard.added_to_anki == False
 
 
 def test_flashcard_creation_from_lute_entry_adverb():
@@ -51,14 +49,12 @@ def test_flashcard_creation_from_lute_entry_adverb():
     flashcard = Flashcard.from_lute_entry(lute_entry)
 
     assert flashcard is not None
-    assert flashcard.source == "engang"
-    assert flashcard.target == "once"
+    assert flashcard.target == "engang"
+    assert flashcard.source == "once"
     assert flashcard.context == ""
     assert flashcard.tags == "adverb, conjunction"
     assert flashcard.source_lang == "English"
     assert flashcard.target_lang == "Danish"
-    assert flashcard.added_lute_timestamp == 1723804485
-    assert flashcard.added_to_anki == False
 
 
 def test_flashcard_creation_from_lute_entry_conjunction():
@@ -77,11 +73,9 @@ def test_flashcard_creation_from_lute_entry_conjunction():
     flashcard = Flashcard.from_lute_entry(lute_entry)
     
     assert flashcard is not None
-    assert flashcard.source == "eller"
-    assert flashcard.target == "or"
+    assert flashcard.target == "eller"
+    assert flashcard.source == "or"
     assert flashcard.context == ""
     assert flashcard.tags == "conjunction"
     assert flashcard.source_lang == "English"
     assert flashcard.target_lang == "Danish"
-    assert flashcard.added_lute_timestamp == 1724273855  
-    assert flashcard.added_to_anki == False

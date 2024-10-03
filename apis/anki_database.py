@@ -40,19 +40,6 @@ def parse_lute_term_output(line: str) -> dict:
     return dict(zip(TERMS_KEYS, values))
 
 
-def create_flashcard_from_lute_entry(lute_entry: LuteEntry) -> Flashcard:
-    source = lute_entry.translation
-    # removes the infinitives
-    if 'verb' in lute_entry.tags and source.startswith('to '):
-        source = source[3:]
-    return Flashcard(
-        target=lute_entry.term,
-        target_lang=lute_entry.language,
-        source_lang="English",
-        source=source,
-        tags=', '.join(lute_entry.tags)
-    )
-
 ### ANKI CONNECT
 
 def send_request_to_anki(action: str, params: dict = None) -> bool | dict:

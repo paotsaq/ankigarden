@@ -299,8 +299,7 @@ class Flashcard:
         content_type: str = "",
         deck: str = "",
         notetype: str = "",
-        added_lute_timestamp: int = 0,
-        added_to_anki: bool = False
+        # added_to_anki: bool = False
     ):
         self.source = source
         self.source_lang = source_lang
@@ -312,8 +311,6 @@ class Flashcard:
         self.tags = tags
         self.content_type = content_type
         self.deck = deck
-        self.added_lute_timestamp = added_lute_timestamp
-        self.added_to_anki = added_to_anki
 
     def __repr__(self):
         return ("|" +
@@ -325,30 +322,16 @@ class Flashcard:
                     ]) +
                 "|")
 
-    # this will be done from NormalizedLuteEntry, actually
     @classmethod
-    def from_lute_entry(cls, entry: LuteEntry) -> Optional['Flashcard']:
-        ALLOWED_TAGS = [
-                'verb',
-                'noun',
-                'building',
-                'conjunction',
-                'adverb'
-                ]
-        tags = entry.tags.split(', ')
-        
-        if any(map(lambda tag: tag in ALLOWED_TAGS, 
-                   tags)):
-            return cls(
-                source=entry.term,
-                target=entry.translation,
-                context=entry.parent,
-                tags=entry.tags,
-                added_lute_timestamp=int(datetime.strptime(entry.added, "%Y-%m-%d %H:%M:%S").timestamp()),
-                added_to_anki=False
+    def from_lute_entry(cls, entry: NormalizedLuteEntry) -> Optional['Flashcard']:
+        return cls(
+            source=entry.translation,
+            # NOTE this is the default!
+            source_lang="English",
+            target=entry.term,
+            target_lang=entry.language,
+            tags=entry.tags,
             )
-        else:
-            return None
 
 
     def get_translation(self, invert: bool = False) -> bool:
