@@ -145,8 +145,52 @@ def save_real_lute_data(lute_csv_path: str, db_path: str) -> None:
     finally:
         close_connection_to_database(session, engine)
 
+### NORMALISATION OF TERMS IN DATABASE
+
+
+def normalize_lute_terms_in_database(database_path: str):
+    session, engine = create_connection_to_database(database_path)
+    try:
+        unmatched_unnormalized_entries = (session.query(LuteTableEntry).filter(
+            LuteTableEntry.anki_note_id.is_(None) & LuteTableEntry.tags.contains('ankigarden-needs-work')).all())
+        updated = 0
+        for entry in unmatched_unnormalized_entries:
+            try:
+                # NOTE normalisation is being done upon object creation;
+                # this might not be a good idea
+                normalized_entry = convert_to_normalized_lute_entry(entry)
+                print(normalized_entry.tags)
+                normalized_entry.fix_logged_problems()
+                # NOTE should this be on object?
+                if normalized_entry.check_eligibility_for_final_tag():
+                    print(normalized_entry.tags.split(" "))
+                    new_tags = " ".join(list(filter(lambda tag: tag != ANKIGARDEN_WORKING_TAG,
+                                                     normalized_entry.tags.split(" ")))
+                                        + [ANKIGARDEN_FINAL_TAG])
+
+                    normalized_entry.tags = new_tags
+                    updated_entry = LuteTableEntry.from_lute_entry(normalized_entry)
+                    
+                    # preserve the original ID
+                    updated_entry.id = entry.id
+                    
+                    # update the entry in the database
+                    session.merge(updated_entry)
+                    logger.info(f"Database updated with ANKIGARDEN_FINAL_TAG for term {entry}")
+                    updated += 1
+            except Exception as e:
+                logger.error(f"An error occurred during the normalization process: {str(e)}")
+        session.commit()
+        logger.info(f"Finished normalisation process. Updated {updated} entries to {ANKIGARDEN_FINAL_TAG}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during the matching process: {str(e)}")
+        session.rollback()
+    finally:
+        close_connection_to_database(session, engine)
+
 
 ### LUTE TERMS MATCHING WITH FLASHCARD
+
 
 def match_lute_terms_with_anki_database(database_path: str):
     session, engine = create_connection_to_database(database_path)

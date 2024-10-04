@@ -78,7 +78,7 @@ def test_normalize_uppercase_term():
     assert normalized.normalization_log[0]["original"] == 'Der'
     assert normalized.normalization_log[0]["normalized"] == 'der'
 
-def test_set_untagged_word_as_root_verb():
+def test_set_untagged_word_as_parent_verb():
     original = LuteEntry(
         term="begyndte",
         parent="",
@@ -107,7 +107,61 @@ def test_set_untagged_word_as_root_verb():
     assert normalized.parent == "begynde"
     assert normalized.tags == "conjugation"
 
-def test_set_untagged_word_as_something():
+def test_set_untagged_word_as_parent_noun_with_common_gender():
+    original = LuteEntry(
+        term="bil",
+        parent="",
+        translation="car",
+        language="Danish",
+        tags="",
+        added=datetime.fromisoformat("2024-08-16T12:34:45"),
+        status="3",
+        link_status="",
+        pronunciation=""
+    )
+    normalized = NormalizedLuteEntry.from_lute_entry(original)
+    
+    assert normalized.term == "bil"
+    
+    # Check normalization log
+    assert len(normalized.normalization_log) == 1
+    assert normalized.normalization_log[0]["method"] == "set must_get_part_of_speech"
+    assert normalized.normalization_log[0]["original"] == False
+    assert normalized.normalization_log[0]["normalized"] == True
+    assert normalized.normalization_log[0]["fixed"] == False
+
+    normalized.fix_logged_problems()
+
+    assert normalized.normalization_log[0]["fixed"] == True
+    assert normalized.tags == "noun common-noun"
+
+def test_set_untagged_word_as_parent_noun_with_neuter_gender():
+    original = LuteEntry(
+        term="hoved",
+        parent="",
+        translation="head",
+        language="Danish",
+        tags="",
+        added=datetime.fromisoformat("2024-08-16T12:34:45"),
+        status="3",
+        link_status="",
+        pronunciation=""
+    )
+    normalized = NormalizedLuteEntry.from_lute_entry(original)
+    
+    # Check normalization log
+    assert len(normalized.normalization_log) == 1
+    assert normalized.normalization_log[0]["method"] == "set must_get_part_of_speech"
+    assert normalized.normalization_log[0]["original"] == False
+    assert normalized.normalization_log[0]["normalized"] == True
+    assert normalized.normalization_log[0]["fixed"] == False
+
+    normalized.fix_logged_problems()
+
+    assert normalized.normalization_log[0]["fixed"] == True
+    assert normalized.tags == "noun neuter-noun"
+
+def test_set_untagged_parent_word_with_part_of_speech():
     original = LuteEntry(
         term="engang",
         parent="",
@@ -137,24 +191,84 @@ def test_set_untagged_word_as_something():
     assert normalized.parent == ""
     assert normalized.tags == "adverb conjunction"
 
-def test_set_word_with_parent_and_verb_tag_as_needing_conjugation_pattern():
+# NOTE this is just testing concatenation of tags
+def test_set_tagged_unparent_word_with_part_of_speech():
     original = LuteEntry(
-        term="besluttede",
-        parent="beslutte",
-        translation="decided",
+        term="engang",
+        parent="",
+        translation="once",
         language="Danish",
-        tags="verb",
-        added=datetime.fromisoformat("2024-08-17T12:51:06"),
-        status="1",
-        link_status="y",
+        tags="nice-word",
+        added=datetime.fromisoformat("2024-08-16T12:34:45"),
+        status="3",
+        link_status="",
         pronunciation=""
     )
     normalized = NormalizedLuteEntry.from_lute_entry(original)
     
-    assert normalized.term == "besluttede"
+    assert normalized.term == "engang"
     
     # Check normalization log
-    assert len(normalized.normalization_log) == 0
+    assert len(normalized.normalization_log) == 1
+    assert normalized.normalization_log[0]["method"] == "set must_get_part_of_speech"
+    assert normalized.normalization_log[0]["field"] == "must_get_part_of_speech"
+    assert normalized.normalization_log[0]["original"] == False
+    assert normalized.normalization_log[0]["normalized"] == True
+    assert normalized.normalization_log[0]["fixed"] == False
+
+    normalized.fix_logged_problems()
+
+    assert normalized.normalization_log[0]["fixed"] == True
+    assert normalized.parent == ""
+    assert normalized.tags == "adverb conjunction nice-word"
+
+def test_set_retrieve_gender_from_common_noun_with_noun_tag():
+    original = LuteEntry(
+        term="bil",
+        parent="",
+        translation="car",
+        language="Danish",
+        tags="noun",
+        added=datetime.fromisoformat("2024-08-16T12:34:45"),
+        status="3",
+        link_status="",
+        pronunciation=""
+    )
+    normalized = NormalizedLuteEntry.from_lute_entry(original)
+    
+    assert normalized.term == "bil"
+    
+    # Check normalization log
+    assert len(normalized.normalization_log) == 1
+    assert normalized.normalization_log[0]["method"] == "set must_get_gender"
+    assert normalized.normalization_log[0]["original"] == False
+    assert normalized.normalization_log[0]["normalized"] == True
+    assert normalized.normalization_log[0]["fixed"] == False
+
+    normalized.fix_logged_problems()
+
+    assert normalized.normalization_log[0]["fixed"] == True
+    assert normalized.tags == "common-noun noun"
+
+# NOTE I'm not so sure about this anymore.
+# def test_set_word_with_parent_and_verb_tag_as_needing_conjugation_pattern():
+    # original = LuteEntry(
+        # term="besluttede",
+        # parent="beslutte",
+        # translation="decided",
+        # language="Danish",
+        # tags="verb",
+        # added=datetime.fromisoformat("2024-08-17T12:51:06"),
+        # status="1",
+        # link_status="y",
+        # pronunciation=""
+    # )
+    # normalized = NormalizedLuteEntry.from_lute_entry(original)
+    
+    # assert normalized.term == "besluttede"
+    
+    # # Check normalization log
+    # assert len(normalized.normalization_log) == 0
 
 def test_removes_unnecessary_tags():
     original = LuteEntry(

@@ -19,6 +19,6 @@ db_path = "/lute_terms.db"
 lute_csv_path = "./Terms.csv"
 
 if __name__ == "__main__":
-    save_real_lute_data(lute_csv_path, db_path)
-    normalize_lute_terms_in_database(db_path)
+    # save_real_lute_data(lute_csv_path, db_path)
+    # normalize_lute_terms_in_database(db_path)
     match_lute_terms_with_anki_database(db_path)

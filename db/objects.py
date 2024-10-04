@@ -11,6 +11,7 @@ from apis.sound_api import (
 from logger import logger
 from const import (
         LANG_MAP,
+        AUDIOS_SOURCE_DIR
         )
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -50,6 +51,7 @@ ALLOWED_VERB_TAGS = [
 TAGS_TO_SUPPRESS = ['vocabulary']
 ANKIGARDEN_WORKING_TAG = "ankigarden-needs-work"
 ANKIGARDEN_FINAL_TAG = "ankigarden-term"
+
 
 @dataclass
 class LuteEntry:
@@ -232,14 +234,32 @@ class NormalizedLuteEntry(LuteEntry):
                 # TODO later this will be shielded by an API call
                 try:
                     categories = get_word_definition(self.term, "Danish")
+                    # TODO these tags and parent handling is insane
+                    # and this will be worked upon later
                     if categories:
-                        self.tags += " ".join(list(map(lambda cat: cat["type"],
-                                                        categories)))
+                        self.tags = " ".join(list(map(lambda cat: cat["type"],
+                                                        categories)) +
+                                             self.tags.split())
+                        noun_category = list(filter(lambda cat: 'noun' in cat["type"],
+                                              categories))
+                        # NOTE if name is a noun...get the gender.
+                        # this is a bit of a mess.
+                        if any(noun_category):
+                            info = noun_category[0]
+                            if info['gender'] == 'c':
+                                gender_tag = 'common-noun'
+                            elif info['gender'] == 'n':
+                                gender_tag = 'neuter-noun'
+                            else:
+                                logger.error("got unexpected gender for {term}!")
+                                gender_tag = "error"
+                            self.tags = " ".join(self.tags.split() + [gender_tag])
                         # TODO 'conjugation' should be removed in this case
                         # TODO create parent entry if there is none
-                        self.parent += " ".join(list(map(lambda cat: cat["parent"],
+                        self.parent = " ".join(list(map(lambda cat: cat["parent"],
                                                         filter(lambda cat: 'parent' in cat,
-                                                               categories))))
+                                                               categories))) +
+                                               self.parent.split())
                         part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
                                                     self.normalization_log))
                         # NOTE I don't like this — mutability is iffy. Should be a proper copy.
@@ -250,6 +270,8 @@ class NormalizedLuteEntry(LuteEntry):
                         self.must_get_part_of_speech = False
                 except Exception as e:
                     logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
+        elif self.must_get_gender:
+            logger.error("gender attribution must be refactored from the part above!")
     
     def check_eligibility_for_final_tag(self):
         return not (
@@ -360,12 +382,15 @@ class Flashcard:
             source_lang="English",
             target=entry.term,
             target_lang=entry.language,
-            tags=entry.tags,
+            # TODO rework this when definite
+            tags=" ".join(entry.tags.split() + ['ankigarden-experimental']),
             )
 
-
     def generate_target_audio_query(self) -> None:
-        pass
+        # NOTE this is the simplest case; just mimic the target
+        if any(filter(lambda category: category in self.tags,
+                      ['building', 'common-phrases'])):
+            self.target_audio_query = self.target
 
     def get_translation(self, invert: bool = False) -> bool:
         """fetches translation from deepL;
@@ -406,6 +431,8 @@ class Flashcard:
         if not self.target:
             logger.error(f"{self.__repr__()} has no target yet!")
             return
+        if not self.audio_filename:
+            self.get_audio_file_path()
         if exists("./audios/" + self.audio_filename):
             logger.error(f"{self.__repr__()} has matching audio downloaded!")
             return

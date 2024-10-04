@@ -365,7 +365,6 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         res_dict = get_word_definition(word, language)
         self.assertEqual(res_dict, [{'parent': 'begynde', 'type': 'conjugation'}])
 
-
     def test_can_identify_adjective_in_full_query(self):
         word = "kræsen"
         language = "Danish"
