@@ -15,8 +15,17 @@ from const import (
         )
 from dataclasses import dataclass, field
 from datetime import datetime
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, DateTime
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import (
+        create_engine,
+        MetaData,
+        Table,
+        Column,
+        Integer,
+        String,
+        DateTime,
+        ForeignKey
+        )
+from sqlalchemy.orm import declarative_base, relationship
 from typing import List, Dict, Optional
 from apis.wiktionary import (
         get_word_definition
@@ -52,6 +61,18 @@ TAGS_TO_SUPPRESS = ['vocabulary']
 ANKIGARDEN_WORKING_TAG = "ankigarden-needs-work"
 ANKIGARDEN_FINAL_TAG = "ankigarden-term"
 
+@dataclass
+class NameDeclensions:
+    singular_definite: str
+    plural_indefinite: str
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            singular_definite=data['singular definite'],
+            plural_indefinite=data['plural indefinite'],
+            )
+
 
 @dataclass
 class LuteEntry:
@@ -64,6 +85,7 @@ class LuteEntry:
     status: str
     link_status: str
     pronunciation: str
+    declensions: NameDeclensions = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -226,52 +248,52 @@ class NormalizedLuteEntry(LuteEntry):
         # if self.status == 'W':
             # logger.warning(f"{self.term} seems to be a learned word. Will skip querying and try matching to Anki database.")
         # else:
-        if self.must_get_part_of_speech:
-            if len(self.term.split()) > 1:
-                logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
-                self.tags += " ".join(self.tags.split() + ["is-compound-term"])
-            else:
-                # TODO later this will be shielded by an API call
-                try:
-                    categories = get_word_definition(self.term, "Danish")
+        try:
+            categories = get_word_definition(self.term, "Danish")
+            if self.must_get_part_of_speech:
+                if len(self.term.split()) > 1:
+                    logger.info(f"Found more than one word. Is {self.term} a `building` or `common-phrase`?")
+                    self.tags += " ".join(self.tags.split() + ["is-compound-term"])
+                else:
                     # TODO these tags and parent handling is insane
-                    # and this will be worked upon later
-                    if categories:
-                        self.tags = " ".join(list(map(lambda cat: cat["type"],
-                                                        categories)) +
-                                             self.tags.split())
-                        noun_category = list(filter(lambda cat: 'noun' in cat["type"],
-                                              categories))
-                        # NOTE if name is a noun...get the gender.
-                        # this is a bit of a mess.
-                        if any(noun_category):
-                            info = noun_category[0]
-                            if info['gender'] == 'c':
-                                gender_tag = 'common-noun'
-                            elif info['gender'] == 'n':
-                                gender_tag = 'neuter-noun'
-                            else:
-                                logger.error("got unexpected gender for {term}!")
-                                gender_tag = "error"
-                            self.tags = " ".join(self.tags.split() + [gender_tag])
-                        # TODO 'conjugation' should be removed in this case
-                        # TODO create parent entry if there is none
-                        self.parent = " ".join(list(map(lambda cat: cat["parent"],
-                                                        filter(lambda cat: 'parent' in cat,
-                                                               categories))) +
-                                               self.parent.split())
-                        part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
-                                                    self.normalization_log))
-                        # NOTE I don't like this — mutability is iffy. Should be a proper copy.
-                        new_log = part_of_speech_log
-                        new_log["fixed"] = True
-                        self.normalization_log.remove(part_of_speech_log) 
-                        self.normalization_log.append(new_log)
-                        self.must_get_part_of_speech = False
-                except Exception as e:
-                    logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
-        elif self.must_get_gender:
-            logger.error("gender attribution must be refactored from the part above!")
+                        # and this will be worked upon later
+                            self.tags = " ".join(list(map(lambda cat: cat["type"],
+                                                          categories)) +
+                                                 self.tags.split())
+                            noun_category = list(filter(lambda cat: 'noun' in cat["type"],
+                                                        categories))
+                            # NOTE if name is a noun...get the gender.
+                            # this is a bit of a mess.
+                            if any(noun_category):
+                                info = noun_category[0]
+                                if info['gender'] == 'c':
+                                    gender_tag = 'common-noun'
+                                elif info['gender'] == 'n':
+                                    gender_tag = 'neuter-noun'
+                                else:
+                                    logger.error("got unexpected gender for {term}!")
+                                    gender_tag = "error"
+                                self.tags = " ".join(self.tags.split() + [gender_tag])
+                                if info['declension'] not in [None, {}]:
+                                    self.declensions = NameDeclensions.from_dict(info['declension'])
+                            # TODO 'conjugation' should be removed in this case
+                            # TODO create parent entry if there is none
+                            self.parent = " ".join(list(map(lambda cat: cat["parent"],
+                                                            filter(lambda cat: 'parent' in cat,
+                                                                   categories))) +
+                                                   self.parent.split())
+                            part_of_speech_log = next(filter(lambda log: log["field"] == "must_get_part_of_speech",
+                                                             self.normalization_log))
+                            # NOTE I don't like this — mutability is iffy. Should be a proper copy.
+                            new_log = part_of_speech_log
+                            new_log["fixed"] = True
+                            self.normalization_log.remove(part_of_speech_log) 
+                            self.normalization_log.append(new_log)
+                            self.must_get_part_of_speech = False
+            elif self.must_get_gender:
+                logger.error("gender attribution must be refactored from the part above!")
+        except Exception as e:
+            logger.error(f"Problems in Wiktionary API. This is not on the scope of normalisation.\n{e.str}")
     
     def check_eligibility_for_final_tag(self):
         return not (
@@ -282,6 +304,16 @@ class NormalizedLuteEntry(LuteEntry):
             self.must_get_conjugation_pattern or
             self.must_clean_ion_tag
             ) 
+
+class NameDeclensions(Base):
+    __tablename__ = 'name_declensions'
+
+    id = Column(Integer, primary_key=True)
+    lute_entry_id = Column(Integer, ForeignKey('lute_terms.id'), unique=True)
+    singular_definite = Column(String)
+    plural_indefinite = Column(String)
+
+    lute_entry = relationship("LuteTableEntry", back_populates="declensions")
 
 
 class LuteTableEntry(Base):
@@ -300,6 +332,8 @@ class LuteTableEntry(Base):
     anki_note_id = Column(Integer)
     last_synced = Column(DateTime)
 
+    declensions = relationship("NameDeclensions", uselist=False,
+                               back_populates="lute_entry", cascade="all, delete-orphan")
 
     @classmethod
     def from_lute_entry(cls, lute_entry: NormalizedLuteEntry):
@@ -315,11 +349,17 @@ class LuteTableEntry(Base):
             pronunciation=lute_entry.pronunciation,
         )
 
+        if 'noun' in lute_entry.tags.split() and lute_entry.declensions:
+            entry.declensions = NameDeclensions(
+                singular_definite=lute_entry.declensions.singular_definite,
+                plural_indefinite=lute_entry.declensions.plural_indefinite
+            )
+        return entry
+
     def __repr__(self):
         return (f"term: {self.term} | translation: {self.translation} | parent: {self.parent}")
 
 
-# NOTE this might not be needed after all
 def convert_to_normalized_lute_entry(table_entry: LuteTableEntry) -> NormalizedLuteEntry:
     lute_entry = LuteEntry(
         term=table_entry.term,
