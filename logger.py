@@ -20,7 +20,7 @@ color_formatter = ColoredFormatter(
 
 # Set up the logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 # Create a stream handler for console output
 console_handler = logging.StreamHandler(sys.stdout)

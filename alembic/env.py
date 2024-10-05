@@ -17,24 +17,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 from sqlalchemy import MetaData, Table, Column, Integer, String, DateTime
 
-Base = declarative_base()
+# Import your models here
+from db.objects import Base, LuteTableEntry, NameDeclensions
 
-class LuteTerm(Base):
-    __tablename__ = 'lute_terms'
-
-    id = Column(Integer, primary_key=True)
-    term = Column(String, nullable=False)
-    parent = Column(String)
-    translation = Column(String)
-    language = Column(String, nullable=False)
-    tags = Column(String)
-    added = Column(DateTime, nullable=False)
-    status = Column(String)
-    link_status = Column(String)
-    pronunciation = Column(String)
-    anki_note_id = Column(Integer)
-    last_synced = Column(DateTime)
-
+# Set target_metadata to your Base.metadata
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

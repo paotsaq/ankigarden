@@ -204,7 +204,7 @@ def match_lute_terms_with_anki_database(database_path: str):
                 if anki_note_id:
                     logger.info(f"Matched and updated entry: {entry.term}")
                 else:
-                    logger.info(f"No match found for entry: {entry.term}")
+                    logger.debug(f"No match found for entry: {entry.term}")
             # NOTE then, it can create _some_ entries that would not likely be matched
             # case in point: terms tagged with `building` represent idiomatic expressions,
             # or small sentence excerpts

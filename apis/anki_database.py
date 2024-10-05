@@ -50,7 +50,7 @@ def send_request_to_anki(action: str, params: dict = None) -> bool | dict:
         res = requests.post(ANKI_CONNECT_BASE_URL,
                            json=payload,
                            )
-        logger.debug(f"Made request: {res}")
+        # logger.debug(f"Made request: {res}")
         if res.status_code != 200:
             logger.error(f"Anki connect request for {action} had an error!")
             return False
@@ -208,20 +208,20 @@ def retrieve_matching_flashcard_id_for_lute_entry(
         return False
     # NOTE this is very unlikely, but in any case a clear match is good to handle
     if len(results["exact_matches_both_fields"]) == 1:
-        logger.info("found exact match on both fields for {lute_entry}")
+        logger.debug("found exact match on both fields for {lute_entry}")
         anki_note_id = results["exact_matches_both_fields"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
     # NOTE on my current setup, I would match if both back sides 
     # (the Danish term) is the same
     elif len(results["exact_match_back_field"]) == 1:
-        logger.info(f"got exact match on back field for {lute_entry}")
+        logger.debug(f"got exact match on back field for {lute_entry}")
         anki_note_id = results["exact_match_back_field"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
     # NOTE this might happen on synonyms; might as well have it too
     elif len(results["exact_match_front_field"]) == 1:
-        logger.info("got exact match on front field for {lute_entry}")
+        logger.debug("got exact match on front field for {lute_entry}")
         anki_note_id = results["exact_match_front_field"][0]
         update_lute_entry_with_anki_id(session, lute_entry, anki_note_id)
         return anki_note_id
