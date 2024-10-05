@@ -6,6 +6,7 @@ from bs4 import (
 from bs4.element import (
         Tag
         )
+import re
 
 SOURCE_BO_DEFINITION = """<ol><li>to <a href="/wiki/live" title="live">live</a>, <a href="/wiki/reside" title="reside">reside</a>, <a href="/wiki/dwell" title="dwell">dwell</a>
 <dl><dd><div class="h-usage-example"><i class="Latn mention e-example" lang="da">Hun <b>bor</b> i London.</i><dl><dd><span class="e-translation">She <b>lives</b> in London.</span></dd></dl></div></dd></dl></li></ol>"""
@@ -177,6 +178,35 @@ EXPECTED_ALL_SUBSECTIONS = """[<div class="mw-heading mw-heading3"><h3 id="Etymo
 
 SOURCE_BEGYNDTE = """<ol><li><span class="form-of-definition use-with-mention"><a href="/wiki/Appendix:Glossary#past_tense" title="Appendix:Glossary">past</a> of <span class="form-of-definition-link"><i class="Latn mention" lang="da"><a href="/wiki/begynde#Danish" title="begynde">begynde</a></i></span></span></li></ol>"""
 
+
+class TestWiktionaryNounGenderInformationFromHtml(unittest.TestCase):
+
+    def test_definite_and_plural_single_consonant(self):
+        COMMON_GENDER_DEF_PLU_SECTION = """<p><span class="headword-line"><strong class="Latn headword" lang="da">bil</strong> <span class="gender"><abbr title="common gender">c</abbr></span> (<i>singular definite</i> <b class="Latn form-of lang-da def|s-form-of" lang="da"><a href="/wiki/bilen#Danish" title="bilen">bilen</a></b>, <i>plural indefinite</i> <b class="Latn form-of lang-da indef|p-form-of" lang="da"><a href="/wiki/biler#Danish" title="biler">biler</a></b>)</span>
+</p>"""
+        soup = BeautifulSoup(COMMON_GENDER_DEF_PLU_SECTION, features="lxml")
+        res = get_noun_declension_from_definition(soup)
+        self.assertEqual(res, {'singular definite': 'bilen',
+                               'plural indefinite': 'biler'})
+
+    def test_definite_and_plural_double_consonant(self):
+        COMMON2_GENDER_DEF_PLU_SECTION = """<p><span class="headword-line"><strong class="Latn headword" lang="da">hat</strong>&nbsp;<span class="gender"><abbr title="common gender">c</abbr></span> (<i>singular definite</i> <b class="Latn form-of lang-da def|s-form-of" lang="da"><a href="/wiki/hatten#Danish" title="hatten">hatten</a></b>, <i>plural indefinite</i> <b class="Latn form-of lang-da indef|p-form-of" lang="da"><a href="/wiki/hatte#Danish" title="hatte">hatte</a></b>)</span>
+</p>"""
+        soup = BeautifulSoup(COMMON2_GENDER_DEF_PLU_SECTION, features="lxml")
+        res = get_noun_declension_from_definition(soup)
+        self.assertEqual(res, {'singular definite': 'hatten',
+                               'plural indefinite': 'hatte'})
+
+    # TODO this is not perfect, but will do for now —
+    def test_definite_and_plural_irregular(self):
+        COMMON2_GENDER_DEF_PLU_SECTION = """<p><span class="headword-line"><strong class="Latn headword" lang="da">cykel</strong>&nbsp;<span class="gender"><abbr title="common gender">c</abbr></span> (<i>singular definite</i> <b class="Latn form-of lang-da def|s-form-of" lang="da"><a href="/wiki/cyklen#Danish" title="cyklen">cyklen</a></b> <i>or</i> <b class="Latn form-of lang-da def|s-form-of" lang="da"><span class="ib-brac qualifier-brac">(</span><span class="ib-content qualifier-content">unofficial</span><span class="ib-brac qualifier-brac">)</span> <span class="Latn" lang="da"><a href="/wiki/cykelen#Danish" title="cykelen">cykelen</a></span></b>, <i>plural indefinite</i> <b class="Latn form-of lang-da indef|p-form-of" lang="da"><a href="/wiki/cykler#Danish" title="cykler">cykler</a></b>)</span>
+</p>"""
+        soup = BeautifulSoup(COMMON2_GENDER_DEF_PLU_SECTION, features="lxml")
+        res = get_noun_declension_from_definition(soup)
+        self.assertEqual(res, {'singular definite': 'cyklen or (unofficial) cykelen',
+                               'plural indefinite': 'cykler'})
+
+
 class TestWiktionaryStepRequests(unittest.TestCase):
 
     def test_can_fetch_wikipedia_page(self):
@@ -261,18 +291,18 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                 }
         self.assertEqual(get_verb_conjugation_from_subsection(BeautifulSoup(SOURCE_TALE_CONJUGATION, features="lxml")), EXPECTED)
 
-    def test_can_retrieve_target_lang_noun_single_definition(self):
+    def test_can_retrieve_target_lang_noun_full_definition_with_steps(self):
         word = "franskbrød"
         language = "Danish"
         soup = fetch_wiktionary_page(word)
-        toc = retrieve_toc_from_soup(soup)
-        target_section = find_target_lang_section_in_toc(toc, language)
         subs = retrieve_target_lang_subsections(language, soup)
         res_dict = get_word_categories_from_subsections(subs, [], {})
         self.assertEqual(res_dict, [{"etymology": "Compound of fransk +\u200e brød, after the model of German Franzbrot.",
-                                    "type": "noun",
-                                    "gender": "n",
-                                    "definition": ["wheat bread"]
+                                     "type": "noun",
+                                     "gender": "n",
+                                     "declension": {'singular definite': 'franskbrødet',
+                                                    'plural indefinite': 'franskbrød'},
+                                     "definition": ["wheat bread"]
                          }])
 
     def test_can_retrieve_target_lang_noun_multiple_definition(self):
@@ -284,37 +314,15 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         subs = retrieve_target_lang_subsections(language, soup)
         res_dict = get_word_categories_from_subsections(subs, [], {})
         self.assertEqual(res_dict, [{"etymology": "Verbal noun to trives (“to thrive”).",
-                                    "type": "noun",
-                                    "gender": "c",
-                                    "definition": ["well-being", "growth, prosperity"]
-                         }])
-
-    def test_can_retrieve_target_lang_multiple_word_role(self):
-        self.maxDiff = None
-        word = "tale"
-        language = "Danish"
-        soup = fetch_wiktionary_page(word)
-        toc = retrieve_toc_from_soup(soup)
-        target_section = find_target_lang_section_in_toc(toc, language)
-        subs = retrieve_target_lang_subsections(language, soup)
-        res_dict = get_word_categories_from_subsections(subs, [], {})
-        self.assertEqual(res_dict, [{"etymology": "From Old Norse tala.",
                                      "type": "noun",
                                      "gender": "c",
-                                     "definition": ["speech, talk, address, discourse"]},
-                                    {"etymology": "From Old Norse tala.",
-                                     "type": "verb",
-                                     "conjugation": {
-                                         "imperative": "tal",
-                                         "infinitive": "at tale",
-                                         "present tense": "taler",
-                                         "past tense": "talte",
-                                         "perfect tense": "har talt"
-                                         },
-                                     "definition": ['to make a speech', 'to speak, talk']
+                                     "declension":  {'singular definite': 'trivselen or trivslen'},
+                                     "definition": ["well-being", "growth, prosperity"]
                          }])
 
+
     def test_can_retrieve_target_lang_multiple_etymologies(self):
+        self.maxDiff = None
         word = "bo"
         language = "Danish"
         soup = fetch_wiktionary_page(word)
@@ -324,6 +332,7 @@ class TestWiktionaryStepRequests(unittest.TestCase):
         res_dict = get_word_categories_from_subsections(subs, [], {})
         self.assertEqual(res_dict, [{'etymology': 'From Old Norse bú, from Old Norse búa (“to reside”).',
                                      'type': 'noun',
+                                     'declension': {'plural indefinite': 'boer', 'singular definite': 'boet'},
                                      'gender': 'n',
                                      'definition': [
                                          'estate (the property of a deceased person)',
@@ -340,11 +349,13 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                      }])
 
     def test_can_get_definition_from_word(self):
+        self.maxDiff = None
         word = "tale"
         language = "Danish"
         res_dict = get_word_definition(word, language)
         self.assertEqual(res_dict, [{"etymology": "From Old Norse tala.",
                                      "type": "noun",
+                                     "declension": {'plural indefinite': 'taler', 'singular definite': 'talen'},
                                      "gender": "c",
                                      "definition": ["speech, talk, address, discourse"]},
                                     {"etymology": "From Old Norse tala.",
@@ -385,13 +396,20 @@ class TestWiktionaryStepRequests(unittest.TestCase):
                                      'type': 'conjunction'}])
 
     def test_can_parse_name_without_gender_information(self):
+        self.maxDiff = None
         word = "drikke"
         language = "Danish"
         res_dict = get_word_definition(word, language)
         self.assertEqual(res_dict,
                          [{'etymology': 'From Old Danish drikkæ, (Western) Old Norse drekka, from Proto-Germanic *drinkaną, cognate with Swedish dricka, English drink, German trinken.', 'type': 'verb', 'conjugation': {'imperative': 'drik'}, 'definition': ['drink', 'have (to partake of a drink)']},
-                          {'etymology': 'From Old Danish drickæ, from the verb.', 'type': 'noun', 'gender': None, 'definition': ['(rare) drink']},
-                          {'etymology': 'See the etymology of the corresponding lemma form.', 'type': 'noun', 'gender': 'c', 'definition': ['indefinite plural of drik']}])
+                          {'etymology': 'From Old Danish drickæ, from the verb.', 'type': 'noun',
+                           'gender': None,
+                           'declension': None,
+                           'definition': ['(rare) drink']},
+                          {'etymology': 'See the etymology of the corresponding lemma form.', 'type': 'noun',
+                           'gender': 'c',
+                           'declension': {},
+                           'definition': ['indefinite plural of drik']}])
                          
 
     # NOTE still not sure whether it is necessary to check the declension table

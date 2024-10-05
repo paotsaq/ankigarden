@@ -1,5 +1,6 @@
 import requests_cache
 import requests
+from pprint import pprint as pp
 from bs4 import (
     BeautifulSoup,
         )
@@ -141,6 +142,24 @@ def get_verb_conjugation_from_subsection(subsection: Tag):
     }
 
 
+def get_noun_declension_from_definition(subsection: Tag):
+    # NOTE this is parsing the definition noun header
+    # eg: "bil c (singular definite bilen, plural indefinite biler)"
+    
+    pattern = r'(singular definite|plural indefinite)\s+(.*?)\s*(?:,|$)'
+
+    raw_text = retrieve_content_from_tag(subsection)
+    paren_content = raw_text[raw_text.find('(') + 1:-1]
+    print(paren_content)
+
+    matches = re.findall(pattern, paren_content, flags=re.IGNORECASE)
+
+    res = {
+        conj_type.strip().lower(): conj_value.strip()
+        for conj_type, conj_value in matches
+        }
+    return res
+
 def get_word_categories_from_subsections(
         subsections: list[Tag],
         categories: list[dict],
@@ -164,10 +183,13 @@ def get_word_categories_from_subsections(
                 gender_section = subsections[1].find("span", "gender")
                 gender_info = (None if not gender_section else
                                retrieve_content_from_tag(gender_section))
+                declension_info = (None if not gender_section else
+                                   get_noun_declension_from_definition(subsections[1]))
                 definition = retrieve_definition_from_tag(subsections[2]).split("\n")
                 new_info = {
                         "type": subsection.lower(),
                         "gender": gender_info,
+                        "declension": declension_info,
                         "definition": definition
                         }
             elif subsection == "Verb":
@@ -213,8 +235,6 @@ def get_word_definition(word: str, language: str = "Danish") -> dict | bool:
     if not soup:
         logger.error(f"Failed to get word definition from Wiktionary for {word}.")
         return False
-    # toc = retrieve_toc_from_soup(soup)
-    # target_section = find_target_lang_section_in_toc(toc, language)
     subs = retrieve_target_lang_subsections(language, soup)
     res_dict = get_word_categories_from_subsections(subs, [], {})
     return res_dict
